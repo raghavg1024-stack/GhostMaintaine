@@ -1,0 +1,43 @@
+{
+  "cells": [
+    {
+      "environment": "py3.9",
+      "status": "needs_human",
+      "image": "python:3.9-slim"
+    },
+    {
+      "environment": "py3.11",
+      "status": "healthy",
+      "image": "python:3.11-slim"
+    },
+    {
+      "environment": "py3.12",
+      "status": "healthy",
+      "image": "python:3.12-slim"
+    }
+  ],
+  "version_note": "CI uses Python 3.11 (source: .github/workflows/ci.yml:10). Use this version for the documented setup.",
+  "note_limit": "A documented support version does not repair an unsupported runtime.",
+  "version_note_verification": {
+    "ok": true,
+    "status": "passed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "VERSION_SMOKE_OK: 1 assertion passed\n",
+        "goal": false,
+        "duration_s": 0.083
+      },
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "VERSION_SMOKE_OK: 1 assertion passed\n",
+        "goal": true,
+        "duration_s": 0.077
+      }
+    ],
+    "non_vacuous": true,
+    "reason": ""
+  }
+}

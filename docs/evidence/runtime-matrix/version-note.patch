@@ -1,0 +1,8 @@
+--- a/README.md
++++ b/README.md
+@@ -5,3 +5,5 @@
+ ```sh
+ python app.py test
+ ```
++
++CI uses Python 3.11 (source: .github/workflows/ci.yml:10). Use this version for the documented setup.

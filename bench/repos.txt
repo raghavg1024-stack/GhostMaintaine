@@ -1,0 +1,4 @@
+# Hand-selected public Python repository; BSD license.
+https://github.com/mahmoud/boltons
+# MIT license; PyPA packaging example. Not a representative ecosystem sample.
+https://github.com/pypa/sampleproject

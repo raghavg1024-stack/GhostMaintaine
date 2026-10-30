@@ -1,0 +1,6 @@
+* text=auto eol=lf
+# Fixture integrity hashes cover exact bytes. Preserve authored line endings.
+fixtures/** -text whitespace=cr-at-eol
+# Recorded diffs include intentional context-line spaces.
+docs/evidence/** -whitespace
+*.png binary

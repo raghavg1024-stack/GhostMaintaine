@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ghostmaintainer"
+version = "0.1.0"
+description = "Evidence-backed onboarding documentation repair"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+ghostmaintainer = "ghostmaintainer:main"
+
+[tool.setuptools]
+py-modules = ["ghostmaintainer", "features", "app", "assistant"]

@@ -1,0 +1,28 @@
+[
+  {
+    "model": "rules",
+    "label_accuracy": 0.6666666666666666,
+    "n_steps": 9,
+    "recovery_rate": 1.0,
+    "n_failure_inducing_mutations": 2,
+    "false_positives": 0,
+    "n_healthy_repos": 1,
+    "median_label_latency_s": 0.0,
+    "n_readmes": 3,
+    "errors": [],
+    "cache_policy": "Existing model-response cache may be used; latency includes cache effects."
+  },
+  {
+    "model": "qwen3:4b-instruct",
+    "label_accuracy": 0.8888888888888888,
+    "n_steps": 9,
+    "recovery_rate": 1.0,
+    "n_failure_inducing_mutations": 2,
+    "false_positives": 0,
+    "n_healthy_repos": 1,
+    "median_label_latency_s": 0.001,
+    "n_readmes": 3,
+    "errors": [],
+    "cache_policy": "Existing model-response cache may be used; latency includes cache effects."
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "name": "GhostMaintainer setup",
+  "image": "python:3.12-slim",
+  "postCreateCommand": "bash ship/setup.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "ghostmaintainer.notice": "Generated from verified commands; devcontainer not separately verified"
+      }
+    }
+  }
+}

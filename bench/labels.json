@@ -1,0 +1,5 @@
+[
+  {"path":"fixtures/haunted_env","indices":[0],"evaluate":true},
+  {"path":"fixtures/healthy","indices":[0,1,2],"evaluate":true,"healthy":true},
+  {"url":"https://github.com/mahmoud/boltons","commit":"d31d821d56c8f7756af9c30a864077f2e5855321","indices":[2,3],"evaluate":false}
+]

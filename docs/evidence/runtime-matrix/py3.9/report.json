@@ -1,0 +1,85 @@
+{
+  "repo": "haunted_version",
+  "backend": "docker",
+  "model": {
+    "labeller": "rules",
+    "cached": false
+  },
+  "goal": {
+    "cmd": "python app.py test",
+    "marker": "VERSION_SMOKE_OK: 1 assertion passed"
+  },
+  "original": {
+    "ok": false,
+    "status": "failed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 1,
+        "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 1, in <module>\n    import tomllib\nModuleNotFoundError: No module named 'tomllib'\n",
+        "goal": false,
+        "duration_s": 0.069
+      }
+    ],
+    "non_vacuous": false,
+    "reason": "Fixed verification goal did not pass"
+  },
+  "patches": [],
+  "status": "needs_human",
+  "baseline": [],
+  "label_disagreement": false,
+  "image": "python:3.9-slim",
+  "drift": {
+    "notes": [],
+    "version_evidence": [
+      {
+        "language": "python",
+        "value": "3.11",
+        "source": ".github/workflows/ci.yml:10"
+      }
+    ],
+    "scope": "Advisory literal Python/Node scan; no patches. Basic version inequalities are checked; dynamic names and complex ranges are unsupported."
+  },
+  "negative_control": {
+    "ok": false,
+    "status": "failed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 1,
+        "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 1, in <module>\n    import tomllib\nModuleNotFoundError: No module named 'tomllib'\n",
+        "goal": false,
+        "duration_s": 0.049
+      }
+    ],
+    "non_vacuous": false,
+    "reason": "Fixed verification goal did not pass"
+  },
+  "trials": [
+    {
+      "candidate": {
+        "cmd": "python app.py test",
+        "source": ".github/workflows/ci.yml:11"
+      },
+      "status": "failed",
+      "passed_setup_steps": 0,
+      "sandbox_time_s": 0.048
+    }
+  ],
+  "verification": {
+    "ok": false,
+    "status": "failed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 1,
+        "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 1, in <module>\n    import tomllib\nModuleNotFoundError: No module named 'tomllib'\n",
+        "goal": false,
+        "duration_s": 0.069
+      }
+    ],
+    "non_vacuous": false,
+    "reason": "Fixed verification goal did not pass"
+  },
+  "duration_s": 2.158
+}

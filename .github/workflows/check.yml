@@ -1,0 +1,21 @@
+name: GhostMaintainer checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: docker pull python:3.12-slim
+      - run: python -m unittest -v
+        env:
+          GHOST_TEST_BACKEND: docker
+      - run: python ghostmaintainer.py eval --backend docker
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-evidence
+          path: runs/

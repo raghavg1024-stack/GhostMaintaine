@@ -1,0 +1,51 @@
+{
+  "repo": "haunted_version",
+  "backend": "docker",
+  "model": {
+    "labeller": "rules",
+    "cached": false
+  },
+  "goal": {
+    "cmd": "python app.py test",
+    "marker": "VERSION_SMOKE_OK: 1 assertion passed"
+  },
+  "original": {
+    "ok": true,
+    "status": "passed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "VERSION_SMOKE_OK: 1 assertion passed\n",
+        "goal": false,
+        "duration_s": 0.132
+      },
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "VERSION_SMOKE_OK: 1 assertion passed\n",
+        "goal": true,
+        "duration_s": 0.111
+      }
+    ],
+    "non_vacuous": true,
+    "reason": ""
+  },
+  "patches": [],
+  "status": "healthy",
+  "baseline": [],
+  "label_disagreement": false,
+  "image": "python:3.11-slim",
+  "drift": {
+    "notes": [],
+    "version_evidence": [
+      {
+        "language": "python",
+        "value": "3.11",
+        "source": ".github/workflows/ci.yml:10"
+      }
+    ],
+    "scope": "Advisory literal Python/Node scan; no patches. Basic version inequalities are checked; dynamic names and complex ranges are unsupported."
+  },
+  "duration_s": 0.918
+}

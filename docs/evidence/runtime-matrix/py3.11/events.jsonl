@@ -1,0 +1,2 @@
+{"phase": "original", "cmd": "python app.py test", "exit_code": 0, "output": "VERSION_SMOKE_OK: 1 assertion passed\n", "goal": false, "duration_s": 0.132}
+{"phase": "original", "cmd": "python app.py test", "exit_code": 0, "output": "VERSION_SMOKE_OK: 1 assertion passed\n", "goal": true, "duration_s": 0.111}

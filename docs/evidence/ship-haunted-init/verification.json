@@ -1,0 +1,27 @@
+{
+  "setup_script": "verified",
+  "devcontainer": "generated, not separately verified",
+  "agent_document": "generated, not separately verified",
+  "result": {
+    "ok": true,
+    "status": "passed",
+    "events": [
+      {
+        "cmd": "bash ship/setup.sh",
+        "exit_code": 0,
+        "output": "GHOST_SMOKE_OK: 1 check passed\nGHOST_SMOKE_OK: 1 check passed\n",
+        "goal": false,
+        "duration_s": 0.277
+      },
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "GHOST_SMOKE_OK: 1 check passed\n",
+        "goal": true,
+        "duration_s": 0.074
+      }
+    ],
+    "non_vacuous": true,
+    "reason": ""
+  }
+}

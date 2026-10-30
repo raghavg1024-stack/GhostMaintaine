@@ -1,0 +1,204 @@
+{
+  "repo": "haunted_env",
+  "backend": "docker",
+  "image": "python:3.12-slim",
+  "goal": {
+    "cmd": "python app.py test",
+    "marker": "GHOST_SMOKE_OK: 1 check passed"
+  },
+  "model": {
+    "labeller": "qwen3:4b-instruct",
+    "cached": false
+  },
+  "original": {
+    "ok": false,
+    "status": "failed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 1,
+        "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 11, in <module>\n    assert Path('config.txt').exists(), 'missing config'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: missing config\n",
+        "goal": false,
+        "duration_s": 0.097
+      }
+    ],
+    "non_vacuous": false,
+    "reason": "Fixed verification goal did not pass"
+  },
+  "patches": [
+    {
+      "cmd": "Local contributor setup:\n\n1. Run initialization:\n   ```sh\n   python app.py init\n   ```\n2. Run test:\n   ```sh\n   python app.py test\n   ```\n\n> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.",
+      "source": "README.md:3, README.md:5"
+    }
+  ],
+  "baseline": [
+    {
+      "cmd": "python app.py init",
+      "source": ".github/workflows/test.yml:11"
+    }
+  ],
+  "label_disagreement": false,
+  "status": "repaired",
+  "assistant": {
+    "interpretation": {
+      "summary": "The README.md document specifies a single command for local contributor setup, but provides no detailed prerequisites, test instructions, or environment requirements beyond the command itself. No setup or test commands are elaborated beyond the example invocation of a Python script. There is no documentation of required dependencies, container limitations, or missing credentials.",
+      "steps": [
+        {
+          "cmd": "python app.py test",
+          "citations": [
+            "README.md:6"
+          ],
+          "reason": "This is the only explicitly documented command in the README for local contributor setup, as specified in the file at line 6."
+        }
+      ],
+      "questions": [
+        "What Python version is required to run app.py?",
+        "Are there any missing dependencies or environment variables needed to execute app.py?",
+        "Is there a test environment or configuration file that must be set up prior to running the test command?"
+      ]
+    },
+    "calls": [
+      {
+        "model": "qwen3:4b-instruct",
+        "cached": false,
+        "duration_s": 3.654
+      },
+      {
+        "model": "qwen3:4b-instruct",
+        "cached": false,
+        "duration_s": 6.702
+      },
+      {
+        "model": "qwen3:4b-instruct",
+        "cached": false,
+        "duration_s": 4.063
+      }
+    ],
+    "proposal_verified": true,
+    "attempts": [
+      {
+        "diagnosis": "The command `python app.py test` fails because the required configuration file `config.txt` does not exist. The application logic in `app.py` (line 11) asserts that `config.txt` must exist before proceeding to the test mode. Since the file is missing, the assertion raises an `AssertionError`. This failure is not due to a missing tool, incorrect environment, or credentials, but rather a missing prerequisite: the initial configuration step (`init`) must be run before `test` can succeed. The current README only shows a test command without indicating that initialization is required prior to execution.",
+        "category": "documentation_gap",
+        "confidence": "high",
+        "evidence": [
+          "app.py:11",
+          "README.md:5"
+        ],
+        "questions": [
+          "Should contributors be required to run `python app.py init` before executing `python app.py test`? If so, should this step be explicitly documented in the setup instructions?"
+        ],
+        "edits": [
+          {
+            "file": "README.md",
+            "old": "Local contributor setup:\n\n```sh\npython app.py test\n```",
+            "new": "Local contributor setup:\n\n1. Run initialization:\n   ```sh\n   python app.py init\n   ```\n2. Run test:\n   ```sh\n   python app.py test\n   ```\n\n> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.",
+            "citations": [
+              "README.md:3",
+              "README.md:5"
+            ]
+          }
+        ]
+      }
+    ],
+    "diagnosis": {
+      "diagnosis": "The command `python app.py test` fails because the required configuration file `config.txt` does not exist. The application logic in `app.py` (line 11) asserts that `config.txt` must exist before proceeding to the test mode. Since the file is missing, the assertion raises an `AssertionError`. This failure is not due to a missing tool, incorrect environment, or credentials, but rather a missing prerequisite: the initial configuration step (`init`) must be run before `test` can succeed. The current README only shows a test command without indicating that initialization is required prior to execution.",
+      "category": "documentation_gap",
+      "confidence": "high",
+      "evidence": [
+        "app.py:11",
+        "README.md:5"
+      ],
+      "questions": [
+        "Should contributors be required to run `python app.py init` before executing `python app.py test`? If so, should this step be explicitly documented in the setup instructions?"
+      ],
+      "edits": [
+        {
+          "file": "README.md",
+          "old": "Local contributor setup:\n\n```sh\npython app.py test\n```",
+          "new": "Local contributor setup:\n\n1. Run initialization:\n   ```sh\n   python app.py init\n   ```\n2. Run test:\n   ```sh\n   python app.py test\n   ```\n\n> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.",
+          "citations": [
+            "README.md:3",
+            "README.md:5"
+          ]
+        }
+      ]
+    },
+    "verification_interpretation": {
+      "summary": "The onboarding process requires running two shell commands in sequence: initialization to create a configuration file, and a test to verify setup. The initialization step is explicitly documented and must be performed before the test. Without the configuration file, the test fails. No additional setup or prerequisites are documented.",
+      "steps": [
+        {
+          "cmd": "python app.py init",
+          "citations": [
+            "README.md:5",
+            "README.md:14"
+          ],
+          "reason": "The initialization command creates the required configuration file (`config.txt`), which is necessary for the test to pass. This step is explicitly documented and must be performed before running the test."
+        },
+        {
+          "cmd": "python app.py test",
+          "citations": [
+            "README.md:9",
+            "README.md:12"
+          ],
+          "reason": "The test command verifies that the setup is complete, including the presence of the configuration file. It is explicitly documented and must be run after initialization."
+        }
+      ],
+      "questions": []
+    },
+    "proposed_diff": "--- a/README.md\n+++ b/README.md\n@@ -2,6 +2,13 @@\n \n Local contributor setup:\n \n-```sh\n-python app.py test\n-```\n+1. Run initialization:\n+   ```sh\n+   python app.py init\n+   ```\n+2. Run test:\n+   ```sh\n+   python app.py test\n+   ```\n+\n+> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.\n"
+  },
+  "negative_control": {
+    "ok": false,
+    "status": "failed",
+    "events": [
+      {
+        "cmd": "python app.py test",
+        "exit_code": 1,
+        "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 11, in <module>\n    assert Path('config.txt').exists(), 'missing config'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: missing config\n",
+        "goal": false,
+        "duration_s": 0.082
+      }
+    ],
+    "non_vacuous": false,
+    "reason": "Fixed verification goal did not pass"
+  },
+  "verification": {
+    "ok": true,
+    "status": "passed",
+    "events": [
+      {
+        "cmd": "python app.py init",
+        "exit_code": 0,
+        "output": "",
+        "goal": false,
+        "duration_s": 0.083
+      },
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "GHOST_SMOKE_OK: 1 check passed\n",
+        "goal": false,
+        "duration_s": 0.076
+      },
+      {
+        "cmd": "python app.py test",
+        "exit_code": 0,
+        "output": "GHOST_SMOKE_OK: 1 check passed\n",
+        "goal": true,
+        "duration_s": 0.081
+      }
+    ],
+    "non_vacuous": true,
+    "reason": ""
+  },
+  "verification_model": {
+    "labeller": "qwen3:4b-instruct",
+    "cached": false
+  },
+  "diff": "--- a/README.md\n+++ b/README.md\n@@ -2,6 +2,13 @@\n \n Local contributor setup:\n \n-```sh\n-python app.py test\n-```\n+1. Run initialization:\n+   ```sh\n+   python app.py init\n+   ```\n+2. Run test:\n+   ```sh\n+   python app.py test\n+   ```\n+\n+> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.\n",
+  "patched_readme": "# haunted_env\n\nLocal contributor setup:\n\n1. Run initialization:\n   ```sh\n   python app.py init\n   ```\n2. Run test:\n   ```sh\n   python app.py test\n   ```\n\n> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.\n",
+  "patched_documents": {
+    "README.md": "# haunted_env\n\nLocal contributor setup:\n\n1. Run initialization:\n   ```sh\n   python app.py init\n   ```\n2. Run test:\n   ```sh\n   python app.py test\n   ```\n\n> Note: The `init` step creates a required configuration file (`config.txt`). Without it, the test will fail with a missing config error.\n"
+  },
+  "duration_s": 16.697
+}

@@ -1,0 +1,2 @@
+{"index": 1, "status": "skipped", "signature": "skip: setup command safety filter"}
+{"index": 2, "status": "needs_human", "first_failure_step": 1, "signature": "exit_1", "license": "LICENSE.txt", "commit": "621e4974ca25ce531773def586ba3ed8e736b3fc"}

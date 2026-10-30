@@ -1,0 +1,18 @@
+{
+  "n_selected": 2,
+  "n_completed": 2,
+  "counts": {
+    "skipped": 1,
+    "needs_human": 1
+  },
+  "percent_of_selected": {
+    "skipped": 50.0,
+    "needs_human": 50.0
+  },
+  "median_first_failure_step": 1,
+  "failure_signatures": {
+    "skip: setup command safety filter": 1,
+    "exit_1": 1
+  },
+  "limit": "Local aggregate only. Hand-selected sample; no ecosystem-wide prevalence claim. Skipped repos are not healthy. Source repositories are not named in results."
+}
