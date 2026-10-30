@@ -26,9 +26,9 @@ python -m unittest -v
 python ghostmaintainer.py eval --backend docker
 ```
 
-At the latest recorded full run, **24 tests passed**. Seven assistant validation tests use mocked model responses; they test boundaries, not model intelligence. Live model execution was tested separately on fixtures. See [evidence](EVIDENCE.md).
+At the latest recorded full run, **25 tests passed**. Seven assistant validation tests use mocked model responses; they test boundaries, not model intelligence. Live model execution was tested separately on fixtures. See [evidence](EVIDENCE.md).
 
-Fixtures contain deliberately omitted steps. Their exact-byte integrity records are stored in `fixtures/manifest.json`; `.gitattributes` preserves fixture line endings across clones. Do not regenerate the hashes to hide unreviewed fixture changes. Never run tests that edit the original fixtures in place.
+Fixtures contain deliberately omitted steps. Their exact-byte integrity records are stored in `fixtures/manifest.json`; `.gitattributes` preserves fixture line endings across clones. Hash input paths are sorted by their relative POSIX names so Windows and Linux produce the same digest. The first Ubuntu CI run caught the old platform-dependent ordering; the fix changes ordering only, not fixture content. Do not regenerate the hashes to hide unreviewed fixture changes. Never run tests that edit the original fixtures in place.
 
 ## Useful CLI commands
 

@@ -114,7 +114,7 @@ def baseline(repo):
 
 def fixture_digest(repo):
     digest = hashlib.sha256()
-    for path in sorted(repo.rglob('*')):
+    for path in sorted(repo.rglob('*'), key=lambda item: item.relative_to(repo).as_posix()):
         if path.is_file():
             digest.update(path.relative_to(repo).as_posix().encode())
             digest.update(path.read_bytes())

@@ -85,7 +85,7 @@ Save that as `ghostmaintainer.json` at its root, or provide the command through 
 
 ## Verified evidence and limits
 
-- **24 regression tests passed** with Docker locally. Seven assistant tests validate boundaries with mocked responses; they are not model-accuracy tests.
+- **25 regression tests passed** with Docker locally. Seven assistant tests validate boundaries with mocked responses; they are not model-accuracy tests.
 - A schema-constrained AI `haunted_env` repair passed in **16.697 seconds** with **three uncached Qwen calls** and fresh original/control/verification runs.
 - A multi-gap fixture repair and a missing-token question were also recorded. Their runtimes/context settings differ.
 - Python matrix: 3.9 fails the version-sensitive fixture; 3.11 and 3.12 pass.

@@ -13,7 +13,7 @@ Each proposed repair is independently interpreted from patched docs only and che
 - The reasoning pipeline repaired the two-gap haunted_init fixture and passed fresh verification. One recorded run took 43.306 seconds, with one cached plan call and six uncached reasoning/interpretation calls. This predates the final schema-constrained prompt changes; see current run artifacts separately.
 - The missing-token fixture returned needs_human plus a specific question about the token's source/format and secure configuration. It did not invent a token. That recorded run used the larger initial context and took 136.354 seconds.
 - PyPA sampleproject was tested repeatedly with its original README and the same unittest goal. The assistant produced incorrect hypotheses about package metadata; proposals did not pass verification. The latest saved result is needs_human. There is still no successful independent real-repository repair.
-- 24 Docker/validation regression tests passed: 17 existing tests plus 7 assistant schema/boundary/citation/patch tests. The assistant validation tests use mocked responses; they do not establish model accuracy. The browser/API path also returned a readable needs_human report for the owner's minimal repository in 11.132 seconds.
+- 25 Docker/validation regression tests passed: 18 existing tests plus 7 assistant schema/boundary/citation/patch tests. The assistant validation tests use mocked responses; they do not establish model accuracy. The browser/API path also returned a readable needs_human report for the owner's minimal repository in 11.132 seconds.
 
 ## Limits
 

@@ -1,6 +1,6 @@
 # Verify. Heal. Ship. Measure. Guard.
 
-All eight requested features are implemented in this source checkout. The browser app offers six analysis modes; friction and replay are embedded in drill reports, and PR Guard runs on GitHub. No sample button was reintroduced.
+All eight requested features are implemented in this source checkout. The browser app offers seven analysis modes; friction and replay are embedded in drill reports, and PR Guard runs on GitHub. No sample button was reintroduced.
 
 | Feature | How to use | Verification and practical scope |
 |---|---|---|
@@ -15,7 +15,7 @@ All eight requested features are implemented in this source checkout. The browse
 
 ## Evidence
 
-- 17 regression tests pass using the Docker backend, including Unicode output, UTF-16 README support, preserved shell state, drift, safety filtering, safe JSON embedding, and setup-script self-checks. Replay JavaScript also has a standalone unit check for scrubbing, output, phase completion, and selected-step highlighting.
+- 25 regression tests pass using the Docker backend, including Unicode output, UTF-16 README support, preserved shell state, drift, safety filtering, safe JSON embedding, and setup-script self-checks. Replay JavaScript also has a standalone unit check for scrubbing, output, phase completion, and selected-step highlighting.
 - Runtime matrix: `runs/features/haunted_version/matrix.html`.
 - Ship verification: `runs/features/haunted_env/ship/verification.json` and `runs/features/haunted_init/ship/verification.json`.
 - Benchmark: `runs/features/bench/BENCH.md` and `bench_models.json`.

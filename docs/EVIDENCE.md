@@ -4,7 +4,7 @@ These are development records, not a general benchmark or proof of deployment re
 
 ## Automated checks
 
-Latest recorded complete local suite: **24 tests passed using Docker**. Seven assistant validation tests mock model output and check citations, edit boundaries, unique/indentation-only context matching, preservation of unrelated docs, and safe rejection. Other tests cover fixture repair, healthy controls, missing secrets, non-empty goals, shell state, stderr/Unicode, UTF-16 documents, drift, filters, replay embedding and setup-script verification.
+Latest recorded complete local suite: **25 tests passed using Docker**. Seven assistant validation tests mock model output and check citations, edit boundaries, unique/indentation-only context matching, preservation of unrelated docs, and safe rejection. Other tests cover fixture repair, healthy controls, missing secrets, non-empty goals, shell state, stderr/Unicode, UTF-16 documents, drift, filters, replay embedding and setup-script verification.
 
 ## Live AI reasoning
 
@@ -38,3 +38,7 @@ No blind successful unfamiliar-repository repair has been established. Model exp
 ## Presentation and deployment
 
 The local browser form, progress polling, benchmark results and drift results were exercised. The AI web/API path returned a readable report. Replay slider behavior was unit-tested; fully offline browser execution remains unverified. Screenshot is real application UI. No backup video is included, no public production deployment exists, and no real-world recovery-rate claim is supported.
+
+## First repository CI run
+
+The first Ubuntu CI run exposed platform-dependent fixture hash ordering that Windows-only checks had missed. Fixture hashing now explicitly sorts relative POSIX filenames; the reviewed integrity records were recalculated without modifying fixture content. A cross-platform ordering regression test was added. Inspect the repository Actions badge for the latest hosted result.

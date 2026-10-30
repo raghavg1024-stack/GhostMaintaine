@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -9,6 +10,14 @@ import ghostmaintainer as gm
 
 
 class PipelineTests(unittest.TestCase):
+    def test_fixture_hash_uses_portable_filename_order(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo = Path(folder)
+            (repo / 'Z.md').write_bytes(b'upper')
+            (repo / 'a.py').write_bytes(b'lower')
+            expected = hashlib.sha256(b'Z.mduppera.pylower').hexdigest()
+            self.assertEqual(gm.fixture_digest(repo), expected)
+
     def setUp(self):
         self.options = SimpleNamespace(backend=os.environ.get('GHOST_TEST_BACKEND', 'fixture'), net=False, labeller='rules')
 
