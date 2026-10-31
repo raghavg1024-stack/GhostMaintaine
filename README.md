@@ -71,7 +71,15 @@ Remote mode is not preconfigured, and a rules-only check makes no model call. In
 2. Paste an inspected public GitHub root URL.
 3. In **Check settings**, choose a resource mode and intended test command; optionally enable dependency-download networking.
 4. Click **Ask GhostMaintainer** and read the explanation, evidence, questions and result.
-5. Review the exact verified documentation diff before applying it yourself. The web app never opens PRs or writes upstream.
+5. Review the verified documentation diff. Apply it yourself, or explicitly enable automatic repair publication to open a pull request on a new branch.
+
+### Automatic verified repair PRs
+
+In the local app, enable **Automatically commit a verified documentation fix to a new branch and open a GitHub pull request** before starting an assistant or README check. The backend publishes only a verified documentation repair whose original failure was repeated. It checks the exact diff and tested commit, creates a new repair branch and commit, then opens a pull request. It does not merge the PR or update the default branch.
+
+Set `GHOST_GITHUB_TOKEN` in the backend process environment before starting the app. Use a fine-grained GitHub token restricted to the intended repository with Contents and Pull requests write permissions; never paste it into the model field or commit it. Restart the backend after setting it. The selected repository must grant this token write access. For another maintainer's repository, run the analysis against your own fork. Fork creation and upstream PR publication are not automated in this version.
+
+If credentials, permissions, or publication fail, the verified report remains available and explains the publication status. An unverified fix is never published. Publisher tests use mocked GitHub responses; live token-based PR creation remains unverified until exercised with a configured account.
 
 The default goal is `python -m unittest discover -v` unless the repository supplies `ghostmaintainer.json`. Change it for projects using another runner. Zero tests is not a pass. Supported execution is currently Python/Linux with a root README.md; missing tools, complex setup and unsupported repositories may remain blocked.
 
@@ -128,7 +136,7 @@ Save that as `ghostmaintainer.json` at its root, or provide the command through 
 
 Latest upgraded run: the synthetic `haunted_env` repair completed in **98.46 seconds**, with all three recorded Qwen calls uncached. Two selected real repositories passed with preparation enabled; a blind Humanize case was inconclusive. [All case records](docs/REAL_REPO_RESULTS.md).
 
-- Current local run: **53 tests discovered; 46 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
+- Current local run: **57 tests discovered; 50 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
 - An earlier schema-constrained AI `haunted_env` repair passed in **16.697 seconds** with **three uncached Qwen calls** and fresh original/control/verification runs.
 - A multi-gap fixture repair and a missing-token question were also recorded. Their runtimes/context settings differ.
 - Python matrix: 3.9 fails the version-sensitive fixture; 3.11 and 3.12 pass.

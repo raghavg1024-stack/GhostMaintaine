@@ -65,7 +65,7 @@ function App() {
         const response=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-Ghost-Token':token},body:JSON.stringify({
           mode:$('mode').value,resource_profile:$('resourceProfile').value,models:$('models').value,matrix:$('matrix').value,
           urls:$('scanUrls').value.split('\n').map(x=>x.trim()).filter(Boolean),url:$('url').value,target:$('target').value,
-          model:selectedModel(),remote_ai:$('remoteAi').checked,network:$('network').checked,prepare:$('prepare').checked,no_cache:$('noCache').checked
+          model:selectedModel(),remote_ai:$('remoteAi').checked,network:$('network').checked,prepare:$('prepare').checked,no_cache:$('noCache').checked,auto_pr:$('autoPr').checked
         })});
         const data=await response.json();if(!response.ok)throw Error(data.error);await poll(data.id);
       }catch(error){status(error.message,true);setBusy(false);}
@@ -118,6 +118,8 @@ function App() {
     $('mode').addEventListener('change',()=>{
       if(localRunner)refreshHealth();
       const mode=$('mode').value;$('url').required=!['bench-models','scan'].includes(mode);
+      if(!['assist','check'].includes(mode))$('autoPr').checked=false;
+      $('autoPr').disabled=hostedInterface||!['assist','check'].includes(mode);
       $('repoField').className=['bench-models','scan'].includes(mode)?'hidden':'';$('scanField').className=mode==='scan'?'':'hidden';
       updateModeCopy();
     });
@@ -222,6 +224,8 @@ function App() {
               <p className="hint">Matrix images must be available in Docker; pull the corresponding python:VERSION-slim images first. Assistant mode defaults to qwen3:4b-instruct. A named model must already be installed and Ollama must be running. Other modes use rules when this field is blank.</p>
             </div>
             <label className="check" htmlFor="noCache"><input type="checkbox" id="noCache" /><span>Live AI demo: bypass saved model responses.</span></label>
+            <label className="check" htmlFor="autoPr"><input type="checkbox" id="autoPr" disabled={hostedInterface} /><span>Automatically commit a verified documentation fix to a new branch and open a GitHub pull request.</span></label>
+            <p className="hint">Enable in the local app. Requires a server-side GHOST_GITHUB_TOKEN with Contents and Pull requests write access to the selected repository. For someone else's repo, run on your own fork. Failed or unverified fixes are never published. The default branch stays unchanged; the PR needs review.</p>
             <label className="check" htmlFor="prepare"><input type="checkbox" id="prepare" /><span>Prepare project-declared Python test dependencies in every fresh container.</span></label>
             <p className="hint">Opt-in. Requires network access below. Installs declared test/build dependencies and the project inside Docker. Preparation logs and sources are included in the report.</p>
             <label className="check" htmlFor="network"><input type="checkbox" id="network" /><span>Allow network inside test containers for dependency installation.</span></label>
@@ -251,7 +255,7 @@ function App() {
     <p className="hint guard-link"><a href="https://github.com/raghavg1024-stack/git_test/pull/1" target="_blank" rel="noopener">PR Guard: view the passing test and bot patch comment ↗</a></p>
     <p className="hint guard-link"><a href="https://ghostmaintainer.vercel.app/evidence/" target="_blank" rel="noopener">Recorded execution evidence, all real-repository results, and judge guide ↗</a></p>
     <p className="hint guard-link"><a href="https://ghostmaintainer.vercel.app/evidence/PRESENTATION_ALIGNMENT.md" target="_blank" rel="noopener">Presentation promises: implementation and evidence audit ↗</a></p>
-    <footer>GitHub Issues track reported bugs. GhostMaintainer tests contributor setup before that issue exists, then verifies a documentation repair. No automatic commits or pull requests. A passing check verifies the chosen test, not every feature.</footer>
+    <footer>GhostMaintainer reproduces contributor setup and verifies documentation repairs. Enable automatic repair in the local app to publish a verified fix as a pull request. A passing check verifies the chosen test, not every feature.</footer>
   </main>
 
   </>;

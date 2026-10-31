@@ -13,4 +13,4 @@ dependencies = []
 ghostmaintainer = "ghostmaintainer:main"
 
 [tool.setuptools]
-py-modules = ["ghostmaintainer", "features", "app", "assistant", "runner_setup", "doctor"]
+py-modules = ["ghostmaintainer", "features", "app", "assistant", "runner_setup", "doctor", "repair_pr"]

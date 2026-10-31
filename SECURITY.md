@@ -4,6 +4,8 @@ GhostMaintainer executes repository-supplied and model-proposed setup commands. 
 
 ## Implemented controls
 
+Automatic publication is off by default. A per-run `auto_pr` opt-in can create a documentation commit, new branch and PR using `GHOST_GITHUB_TOKEN` on the local backend. It checks the verified diff, nonempty successful verification, failing original/control and tested revision before publishing. It requires repository write access and never merges or updates the default branch. Keep the token out of source, model input, browser fields and execution logs. It is used only by the host-side GitHub API publisher and is not passed into Docker. No automatic fork creation is implemented.
+
 - Loopback-only web server, strict Host checks, foreign-Origin rejection and per-process POST token.
 - Public github.com root URLs only; no interactive credentials; Git global/system configuration disabled during application clones.
 - No arbitrary host shell fallback. The host fixture runner is restricted to hash-checked bundled fixtures and specific command forms.

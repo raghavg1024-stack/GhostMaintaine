@@ -19,7 +19,7 @@ class URLTests(unittest.TestCase):
 class APIPermissionTests(unittest.TestCase):
     def test_prepare_and_network_flags_are_checked_at_http_boundary(self):
         import app
-        for extra in ({'prepare':True,'network':False},{'prepare':'true','network':True},{'no_cache':'false'}):
+        for extra in ({'prepare':True,'network':False},{'prepare':'true','network':True},{'no_cache':'false'},{'auto_pr':'true'},{'auto_pr':True,'mode':'drift'}):
             with self.subTest(extra=extra), self.assertRaises(ValueError):
                 app.validate_request_flags(extra)
 

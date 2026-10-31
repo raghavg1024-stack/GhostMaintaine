@@ -4,7 +4,7 @@ These are development records, not a general benchmark or proof of deployment re
 
 ## Automated checks
 
-Current Windows run: **53 tests discovered, 46 passed, and 7 Docker-only tests skipped**. The most recent full Docker run predates the new resource-profile and optional remote-inference changes: **38 tests passed** at that time. Assistant validation tests mock model output and check citations, edit boundaries, unique/indentation-only context matching, preservation of unrelated docs, and safe rejection. New tests cover profile budgets, endpoint consent, HTTPS requirements, and common log-secret redaction. The current resource-profile changes have not had a full Docker integration run.
+Current Windows run: **57 tests discovered, 50 passed, and 7 Docker-only tests skipped**. The most recent full Docker run predates the new resource-profile and optional remote-inference changes: **38 tests passed** at that time. Assistant validation tests mock model output and check citations, edit boundaries, unique/indentation-only context matching, preservation of unrelated docs, and safe rejection. New tests cover profile budgets, endpoint consent, HTTPS requirements, and common log-secret redaction. The current resource-profile changes have not had a full Docker integration run.
 
 ## Live AI reasoning
 

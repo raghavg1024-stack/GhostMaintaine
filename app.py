@@ -32,12 +32,14 @@ def repository_url(value):
 
 def validate_request_flags(request):
     """Validate safety-related request flags without requiring an HTTP server."""
-    for key in ('network', 'prepare', 'no_cache', 'remote_ai'):
+    for key in ('network', 'prepare', 'no_cache', 'remote_ai', 'auto_pr'):
         if key in request and type(request[key]) is not bool:
             raise ValueError(f'{key} must be a boolean')
     if request.get('prepare') and not request.get('network'):
         raise ValueError('Dependency preparation requires explicit container network permission')
     profile=request.get('resource_profile','balanced')
+    if request.get('auto_pr') and request.get('mode') not in ('assist','check'):
+        raise ValueError('Automatic repair PRs apply only to assistant and README verification modes')
     if not isinstance(profile,str) or profile not in AI_PROFILES:
         raise ValueError('Choose low, balanced, or rules-only resource mode')
     if request.get('mode')=='assist' and profile!='rules':
@@ -131,6 +133,13 @@ def execute(job_id, request):
             report['ship']=features.ship(repo,options,report,folder/'result'/'ship')
         report['repo']=request['url'].removesuffix('.git')
         report['revision']=revision
+        if request.get('auto_pr'):
+            update(job_id,message='Publishing the verified documentation repair to a new branch and pull request…')
+            from repair_pr import publish
+            try:
+                report['automation']=publish(repo,report,requested=True)
+            except (OSError,ValueError,subprocess.SubprocessError) as error:
+                report['automation']={'status':'blocked','reason':str(error)[:500]}
         gm.save_report(report, folder / 'result', repo_path=repo)
         update(job_id, state='done', status=report['status'], message='Check complete.',
                report=f'/reports/{job_id}/replay.html', duration=report['duration_s'])

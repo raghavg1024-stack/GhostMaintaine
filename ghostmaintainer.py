@@ -488,6 +488,13 @@ def evidence_journey_html(report):
     for call in assistant.get('calls',[]):
         page+='<p>'+esc(call.get('model','not recorded'))+' · '+('cached response' if call.get('cached') else 'fresh response')+' · '+esc(call.get('duration_s','not recorded'))+' seconds</p>'
     if not assistant.get('calls'): page+='<p>No model call records available.</p>'
+    automation=report.get('automation')
+    if automation:
+        page+='<h3>Automatic repair publication</h3><p>Status: '+esc(automation.get('status'))+'</p><p>'+esc(automation.get('reason',''))+'</p>'
+        url=automation.get('url','')
+        if re.fullmatch(r'https://github\.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+/pull/\d+',url):
+            page+='<p><a href="'+esc(url)+'" target="_blank" rel="noopener">Review the automatic repair pull request</a></p>'
+        if automation.get('branch'): page+='<p>Repair branch: <code>'+esc(automation['branch'])+'</code></p>'
     return page+'</section>'
 
 
@@ -516,6 +523,8 @@ def readable_report_markdown(report):
         phase=report.get(key)
         lines.append('- '+label+': '+(('passed' if phase.get('ok') else phase.get('status','not verified')) if phase else 'not run'))
     lines += ['', '## Documentation diff', '', '~~~~diff', report.get('diff') or report.get('assistant',{}).get('proposed_diff') or 'No change proposed.', '~~~~']
+    if report.get('automation'):
+        lines += ['', '## Automatic repair publication', '', json.dumps(report['automation'],indent=2)]
     lines += ['', '## Step-by-step fix', '', 'These are recommendations, not completed or verified fixes.', '']
     lines += [f'{index}. {step}' for index, step in enumerate(steps, 1)]
     return '\n'.join(lines)+'\n'

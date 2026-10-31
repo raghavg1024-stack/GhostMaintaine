@@ -13,7 +13,7 @@ Reviewed October 31, 2026 against the 10 slides, speaker notes, and embedded arc
 | 7 | Logs, exit codes, timing; distinguish docs/environment/credentials/code/uncertainty; init/test example | Runner events; `assistant.propose` categories; `fixtures/haunted_env`; archived Qwen repair. | Implemented; model classification can be wrong. Deterministic environment blockers may stop before model diagnosis. |
 | 8 | Docs-only patch, repeated failure, independent patched interpretation, fresh fixed check, zero-test rejection | `assistant.apply_edits/run`, `ghostmaintainer.run`; synthetic repair records. | Implemented. Full current Docker integration and live-model rerun are unverified in this audit. |
 | 9 | Four status labels, journey, stages/readiness, uncached option, citations/questions/diffs/downloads/cache disclosure, no auto PR | API/UI pipeline; report renderer now shows original/control/verification, diagnosis, sources/questions, exact diff, call/cache metadata. | Implemented. Missing stages explicitly display “Not run”; inconclusive stays inconclusive. |
-| 10 | Synthetic repair; ItsDangerous/sampleproject pass with preparation; Humanize inconclusive; 38 tests | Pinned saved records in `docs/REAL_REPO_RESULTS.md`, `docs/evidence/judge-live`, `docs/evidence/real-evaluation`. | Historical results, not rerun here. Current local suite: 53 discovered, 46 passed, 7 Docker checks skipped. Keep the slide's 38-test figure labeled as an earlier Docker run. |
+| 10 | Synthetic repair; ItsDangerous/sampleproject pass with preparation; Humanize inconclusive; 38 tests | Pinned saved records in `docs/REAL_REPO_RESULTS.md`, `docs/evidence/judge-live`, `docs/evidence/real-evaluation`. | Historical results, not rerun here. Current local suite: 57 discovered, 50 passed, 7 Docker checks skipped. Keep the slide's 38-test figure labeled as an earlier Docker run. |
 
 ## Changes from this audit
 
@@ -29,3 +29,7 @@ Reviewed October 31, 2026 against the 10 slides, speaker notes, and embedded arc
 - Vercel publishes the interface and selected saved reports. Start the local Python backend, Docker and the selected Ollama model to run new AI analyses. No local backend update is delivered merely by refreshing Vercel.
 - No automatic upstream commit/PR is part of a normal website check. Maintainers review and apply changes themselves.
 - Regression checks use mocks/fixtures where appropriate. They do not establish local model accuracy. The fresh Docker/model loop must be rehearsed on the presentation PC before calling it a live demonstration.
+
+## Later user-requested automation
+
+The later automatic repair option extends the original deck: normal checks still do not publish, but an explicit per-run checkbox can open a docs-only repair PR with a configured write token. The default branch is never merged or updated automatically. Live publication is unverified; regression tests mock GitHub.

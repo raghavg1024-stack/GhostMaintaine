@@ -31,6 +31,7 @@ X-Ghost-Token: <session-token>
 
 | Field | Meaning |
 |---|---|
+| `auto_pr` | Boolean, default false. In `assist`/`check` only, publish a verified docs-only repair to a new branch and PR. Requires backend `GHOST_GITHUB_TOKEN` with repository Contents/Pull requests write access. Publication status is recorded in report `automation`; failed publication preserves the verification result. |
 | `mode` | `assist`, `check`, `ship`, `drift`, `matrix`, `bench-models`, or `scan`; API default is legacy `check`, browser default is `assist` |
 | `url` | Public github.com root URL, required except benchmark/scan |
 | `target` | Optional replacement fixed test command; no custom marker field |

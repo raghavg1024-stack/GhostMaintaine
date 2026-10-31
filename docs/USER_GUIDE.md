@@ -88,7 +88,7 @@ Reports contain the summary, explanation, proposed/verified diff, source receipt
 
 ## Artifacts and persistence
 
-Local jobs are stored under `runs/web/JOB_ID/`: cloned input in `checkout/`, generated evidence in `result/`. The application does not commit, push, open PRs, or modify upstream repositories. Patch application is manual. The original checkout is not overwritten by model repair proposals; temporary copies are used for verification.
+Local jobs are stored under `runs/web/JOB_ID/`: cloned input in `checkout/`, generated evidence in `result/`. By default patch application is manual. In the local app, the automatic repair checkbox can publish an exactly verified documentation fix to a new branch and pull request using a backend GHOST_GITHUB_TOKEN with repository write access. The default branch is never updated automatically; review and merge the PR yourself. For third-party repositories, analyze your own fork. See the README for configuration. The original checkout is not overwritten by model repair proposals; temporary copies are used for verification.
 
 Only one web job runs at a time. Job status is in memory; restarting loses the polling index, while disk artifacts remain. There is currently no history UI or cancellation button. Raw model responses are cached under `.cache/`; per-call cache use is reported. Delete the relevant cache entries if you need an uncached demonstration. No backup video or hosted deployment is included.
 
