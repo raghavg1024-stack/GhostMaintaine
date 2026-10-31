@@ -310,6 +310,13 @@ def run(repo,options):
     if original['ok']:
         report['duration_s']=round(time.perf_counter()-started,3)
         return report
+    if any(e.get('goal') and re.search(r'Ran 0 tests\b|NO TESTS RAN|no tests ran',str(e.get('output','')),re.I) for e in original.get('events',[])):
+        report['reason']='The fixed check found zero tests. Supply a real project test command or add tests before a documentation repair can be verified.'
+        report['assistant']['diagnosis']={'category':'uncertain','confidence':'high','diagnosis':report['reason'],
+            'questions':['Where are this repository’s tests, and which command should execute at least one test?'],
+            'evidence':[],'edits':[]}
+        report['duration_s']=round(time.perf_counter()-started,3)
+        return report
     notify('Reproducing the failure in another fresh sandbox…')
     control=gm.run(repo,steps,goal,'docker',options.net,image=image,preparation=preparation)
     report['negative_control']=control

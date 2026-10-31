@@ -564,6 +564,8 @@ def main():
     parser.add_argument('--matrix', help='Comma-separated Python environments, e.g. py3.9,py3.11,py3.12')
     parser.add_argument('--out', type=Path, default=ROOT / 'runs')
     args = parser.parse_args()
+    if args.command != 'assist':
+        args.labeller = args.labeller or 'rules'
     if args.no_cache:
         os.environ['GHOST_NO_CACHE']='1'
     try:
@@ -632,7 +634,6 @@ def main():
             save_report(report, args.out / args.repo.name, repo_path=args.repo.resolve())
             print(json.dumps({'status': report['status'], 'report': str((args.out / args.repo.name / 'replay.html').resolve())}, indent=2))
             return 0 if report['status'] in ('healthy', 'repaired') else 2
-        args.labeller=args.labeller or 'rules'
     except (ValueError, OSError, KeyError, subprocess.SubprocessError) as error:
         print(f'ghostmaintainer: {error}', file=sys.stderr)
         return 1

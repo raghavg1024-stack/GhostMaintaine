@@ -5,11 +5,22 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
+from unittest.mock import patch
+from contextlib import redirect_stdout
+from io import StringIO
 
 import ghostmaintainer as gm
 
 
 class PipelineTests(unittest.TestCase):
+    def test_default_cli_evaluation_uses_rules_without_ollama(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(gm.sys,'argv',
+            ['ghostmaintainer.py','eval',str(gm.ROOT/'fixtures'/'healthy'),'--backend','fixture','--out',folder]), \
+            patch('urllib.request.urlopen',side_effect=AssertionError('Default evaluation must not contact Ollama')),redirect_stdout(StringIO()):
+            self.assertEqual(gm.main(),0)
+            result=json.loads((Path(folder)/'evaluation.json').read_text(encoding='utf-8'))
+            self.assertEqual(result[0]['labeller'],'rules')
+
     def test_fixture_hash_uses_portable_filename_order(self):
         with tempfile.TemporaryDirectory() as folder:
             repo = Path(folder)

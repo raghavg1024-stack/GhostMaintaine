@@ -125,6 +125,15 @@ class AssistantTests(unittest.TestCase):
         propose.assert_not_called()
         self.assertEqual(report['status'],'inconclusive')
 
+    def test_zero_tests_requests_real_check_without_attempting_patch(self):
+        options=SimpleNamespace(backend='docker',labeller='test-model',net=False)
+        failure={'ok':False,'status':'failed','events':[{'goal':True,'output':'Ran 0 tests in 0.000s\nNO TESTS RAN','exit_code':5}]}
+        with patch.object(a,'plan',return_value=([],{}, {'cached':False})),patch.object(a.gm,'run',return_value=failure),patch.object(a,'propose') as propose:
+            report=a.run(a.gm.ROOT/'fixtures'/'haunted_env',options)
+        propose.assert_not_called()
+        self.assertEqual(report['status'],'needs_human')
+        self.assertIn('zero tests',report['reason'])
+
     def test_invalid_verification_plan_cannot_escape_or_publish_patch(self):
         options=SimpleNamespace(backend='docker',labeller='test-model',net=False)
         failure={'ok':False,'status':'failed','events':[{'cmd':'python app.py test','exit_code':1,'output':'missing config'}]}
