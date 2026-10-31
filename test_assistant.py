@@ -9,6 +9,39 @@ import assistant as a
 
 
 class AssistantTests(unittest.TestCase):
+    def test_setup_after_line_180_and_config_survive_large_readme(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo=Path(folder)
+            (repo/'README.md').write_text(('Project history and release news.\n'*700)+'\n## Contributor setup\npython -m pip install -e .\npython -m pytest\n',encoding='utf-8')
+            (repo/'pyproject.toml').write_text('[project]\nname="sample"\n',encoding='utf-8')
+            files=a.context(repo,profile='low')
+        self.assertIn('python -m pip install -e .',files['README.md'])
+        self.assertIn('pyproject.toml',files)
+        self.assertLessEqual(sum(map(len,files.values())),6000)
+        a.citations(['README.md:703'],files)
+        with self.assertRaises(ValueError):
+            a.citations(['README.md:400'],files)
+        steps=a.validate_plan({'steps':[{'cmd':'python -m pip install -e .','citations':['README.md:703']}]},files)
+        self.assertEqual(steps[0]['source'],'README.md:703')
+
+    def test_initial_plan_does_not_receive_full_large_document(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo=Path(folder)
+            (repo/'README.md').write_text('history\n'*5000+'\nSetup: python -m pytest\n',encoding='utf-8')
+            (repo/'ghostmaintainer.json').write_text('{"cmd":"python -m pytest"}',encoding='utf-8')
+            options=SimpleNamespace(backend='docker',resource_profile='low',labeller='small',net=False)
+            with patch.object(a,'plan',side_effect=ValueError('stop before execution')) as plan:
+                report=a.run(repo,options)
+            supplied=plan.call_args.args[0]
+        self.assertLessEqual(sum(map(len,supplied.values())),6000)
+        self.assertEqual(report['context']['planning_characters'],sum(map(len,supplied.values())))
+
+    def test_failure_terms_retrieve_late_code_with_original_line_numbers(self):
+        text='irrelevant details\n'*300+'raise RuntimeError("MISSING_CONFIG: run initialize")\n'
+        selected=a.excerpt(text,400,query='MISSING_CONFIG')
+        self.assertIn('MISSING_CONFIG',selected)
+        self.assertIn('301: raise RuntimeError',a.numbered({'app.py':selected})['app.py'])
+
     def test_low_context_keeps_readme_and_respects_character_budget(self):
         with tempfile.TemporaryDirectory() as folder:
             repo=Path(folder)

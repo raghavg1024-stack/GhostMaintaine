@@ -214,9 +214,9 @@ function App() {
     </section>
 
     <div className="steps">
-      <div><strong>01 · Follow the README</strong><span>Start in a clean Docker environment.</span></div>
-      <div><strong>02 · Find the missing instruction</strong><span>Look for supporting commands in CI and config.</span></div>
-      <div><strong>03 · Verify the fix</strong><span>Rerun with patched docs and show the evidence.</span></div>
+      <div><strong>01 · Reproduce setup</strong><span>Follow the docs in a clean Docker environment. Record the commands and failures.</span></div>
+      <div><strong>02 · Propose a sourced repair</strong><span>A small model reads selected setup and failure evidence. Review its exact documentation diff.</span></div>
+      <div><strong>03 · Prove the chosen check</strong><span>Rerun in a fresh environment against the same test. An unverified fix stays unverified.</span></div>
     </div>
     <div id="result" className="hidden">
       <h2 id="resultTitle">Your result</h2>

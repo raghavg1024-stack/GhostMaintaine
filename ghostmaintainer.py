@@ -435,6 +435,8 @@ def readable_report_html(report):
         failure_note = ' · includes trimmed failure output' if context_record.get('failure_logs_sent') else ''
         context_note = '<p class="hint">Model context: '+esc(context_record.get('resource_profile','standard'))+' · '+esc(context_record.get('context_tokens','?'))+' tokens · inference on '+location+' · selected files: '+files+failure_note+'</p>'
         context_summary = '<p class="meta">AI inference: '+esc(context_record.get('resource_profile','standard'))+' profile · '+esc(context_record.get('context_tokens','?'))+' context tokens · '+location+'</p>'
+        if context_record.get('selection'):
+            context_note += '<p class="hint">Evidence selection: '+esc(context_record['selection'])+' Full source line selections are recorded in the downloadable JSON.</p>'
     else:
         context_summary = ''
     calls = report.get('assistant', {}).get('calls', [])

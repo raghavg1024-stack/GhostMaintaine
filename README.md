@@ -11,7 +11,9 @@ The website hosts the interface. Start the local app on your PC to run repositor
 
 Paste a public GitHub repository URL into the local website. GhostMaintainer reads a small, selected set of onboarding evidence, runs its instructions in a clean Docker environment, explains failures, and verifies documentation repairs against the same test target.
 
-GitHub Issues collect problems someone has reported. GhostMaintainer checks whether setup instructions work before a contributor has to discover and report a failure. It is an onboarding check, not an issue summarizer or a general code debugger.
+GitHub Issues collect problems someone has reported. GhostMaintainer checks whether setup instructions work before a contributor has to discover and report a failure. Its useful output is a recorded setup attempt, the exact failed command, a sourced documentation diff when possible, and fresh execution of the same fixed test. Maintainers can repeat this check after setup instructions or dependencies change; contributors can share the evidence instead of reconstructing their terminal history.
+
+For example, if a documented test fails because initialization was skipped, GhostMaintainer looks for the initialization command in repository evidence, proposes adding that instruction, and verifies the patched path in a fresh container. If Git is missing from the container or credentials are required, it reports the blocker. Neither case establishes an upstream documentation defect.
 
 **Status: hackathon prototype.** A live AI fixture repair has passed; reliable repair on unfamiliar real repositories remains unverified. Model explanations can be wrong. The frontend is deployed on Vercel; repository analysis runs locally. Setup success is not guaranteed.
 
@@ -43,7 +45,11 @@ Assistant mode defaults to the tested installed tag `qwen3:4b-instruct`. Install
 | Balanced | `qwen3:4b-instruct` | 8,192 context tokens; 16,000 selected characters | Default assistant mode |
 | Rules only | None | No model prompt | Deterministic checks only; cannot interpret setup prose |
 
-Ollama lists the [Qwen3 1.7B and 4B quantized model files](https://ollama.com/library/qwen3) at about 1.4 GB and 2.5 GB respectively. These are weight sizes, not total memory requirements; Docker, model runtime, and context need additional memory. The app sends selected setup documents and a small number of relevant files, not the whole repository. It truncates oversized files to the profile budget and records the files sent in `report.json`.
+Ollama lists the [Qwen3 1.7B and 4B quantized model files](https://ollama.com/library/qwen3) at about 1.4 GB and 2.5 GB respectively. These are weight sizes, not total memory requirements; Docker, model runtime, and context need additional memory. The app sends selected setup documents and a small number of relevant files, not the whole repository.
+
+Large documents are searched in 12-line blocks across the file, including setup sections below line 180. Setup terms rank the initial excerpts; actual failure terms guide repair excerpts. The budget is shared between the README and other evidence, so a long README cannot consume all configuration space. Original source line numbers are preserved, and citations to omitted lines are rejected. The initial planning call also uses this bounded selection; full documents stay local for applying exact edits. `report.json` records selected original lines and character counts per repair attempt.
+
+This is keyword-based evidence selection, not complete repository understanding. It may miss an important instruction; file inputs above 2 MB are skipped. Character budgets limit selected text, not exact tokenizer usage. A smaller model can still reason incorrectly, and Docker or repository dependencies may exceed a low-end PC's resources. Use rules-only mode without model inference, or optional remote inference if model memory is the bottleneck; execution remains local in both cases.
 
 ### Optional remote Ollama
 
@@ -120,7 +126,7 @@ Save that as `ghostmaintainer.json` at its root, or provide the command through 
 
 Latest upgraded run: the synthetic `haunted_env` repair completed in **98.46 seconds**, with all three recorded Qwen calls uncached. Two selected real repositories passed with preparation enabled; a blind Humanize case was inconclusive. [All case records](docs/REAL_REPO_RESULTS.md).
 
-- Current local run: **48 tests discovered; 41 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
+- Current local run: **51 tests discovered; 44 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
 - An earlier schema-constrained AI `haunted_env` repair passed in **16.697 seconds** with **three uncached Qwen calls** and fresh original/control/verification runs.
 - A multi-gap fixture repair and a missing-token question were also recorded. Their runtimes/context settings differ.
 - Python matrix: 3.9 fails the version-sensitive fixture; 3.11 and 3.12 pass.
