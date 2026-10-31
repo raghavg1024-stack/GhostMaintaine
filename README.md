@@ -5,13 +5,19 @@
 [![CI](https://github.com/raghavg1024-stack/GhostMaintaine/actions/workflows/check.yml/badge.svg)](https://github.com/raghavg1024-stack/GhostMaintaine/actions/workflows/check.yml)
 [MIT license](LICENSE) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Evidence](docs/EVIDENCE.md) · [Roadmap](docs/ROADMAP.md)
 
+**[Open the website](https://ghostmaintainer.vercel.app/)** · [Recorded execution evidence](https://ghostmaintainer.vercel.app/evidence/)
+
+The website hosts the interface. Start the local app on your PC to run repository checks with Docker and your selected Ollama model.
+
 Paste a public GitHub repository URL into the local website. GhostMaintainer reads a small, selected set of onboarding evidence, runs its instructions in a clean Docker environment, explains failures, and verifies documentation repairs against the same test target.
 
 GitHub Issues collect problems someone has reported. GhostMaintainer checks whether setup instructions work before a contributor has to discover and report a failure. It is an onboarding check, not an issue summarizer or a general code debugger.
 
-**Status: hackathon prototype.** A live AI fixture repair has passed; reliable repair on unfamiliar real repositories remains unverified. Model explanations can be wrong. This is a local application, not a deployed public service or a universal setup-success guarantee.
+**Status: hackathon prototype.** A live AI fixture repair has passed; reliable repair on unfamiliar real repositories remains unverified. Model explanations can be wrong. The frontend is deployed on Vercel; repository analysis runs locally. Setup success is not guaranteed.
 
-<img src="docs/images/assistant.png" alt="GhostMaintainer local website with AI maintainer assistant selected" width="420">
+[<img src="docs/images/assistant.png" alt="Current GhostMaintainer website showing the AI setup form and local runner instructions" width="800">](https://ghostmaintainer.vercel.app/)
+
+Current deployed interface, captured on October 31, 2026.
 
 ## Start the website
 
