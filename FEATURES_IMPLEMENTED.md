@@ -15,7 +15,8 @@ All eight requested features are implemented in this source checkout. The browse
 
 ## Evidence
 
-- 25 regression tests pass using the Docker backend, including Unicode output, UTF-16 README support, preserved shell state, drift, safety filtering, safe JSON embedding, and setup-script self-checks. Replay JavaScript also has a standalone unit check for scrubbing, output, phase completion, and selected-step highlighting.
+- Resource modes: low-memory (Qwen3 1.7B, 4K context), balanced (Qwen3 4B, 8K context), and rules-only (no LLM). Selected evidence is capped and listed in the report. Optional remote Ollama requires HTTPS and explicit per-run consent; the full checkout is not sent.
+- Current local run: 48 tests discovered, 41 passed, and 7 Docker-only tests skipped. The latest recorded full Docker run before these profile changes had 38 tests pass; Docker integration has not been rerun for this change. Replay JavaScript has a separate test for scrubbing, output, phase completion, and selected-step highlighting.
 - Runtime matrix: `runs/features/haunted_version/matrix.html`.
 - Ship verification: `runs/features/haunted_env/ship/verification.json` and `runs/features/haunted_init/ship/verification.json`.
 - Benchmark: `runs/features/bench/BENCH.md` and `bench_models.json`.
@@ -26,3 +27,5 @@ All eight requested features are implemented in this source checkout. The browse
 - Original successful bot comment: https://github.com/raghavg1024-stack/git_test/pull/1#issuecomment-6533179689
 
 The default branch was not changed. The demonstration is on a draft PR branch for review. The app remains local-only at http://127.0.0.1:8765. A single scan/benchmark can take minutes; runs are serialized in the web app. This is an inspected-repository prototype, not a public multi-tenant sandbox service.
+
+Latest upgrade: see docs/JUDGE_DEMO.md and docs/REAL_REPO_RESULTS.md. The fresh synthetic AI repair passed in 98.46 seconds; two selected real repositories passed with preparation and one blind case was inconclusive. Zero automatic unrelated-real-repository repairs are claimed.

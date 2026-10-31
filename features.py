@@ -163,7 +163,7 @@ def matrix(repo, options):
         image = f'python:{environment[2:]}-slim'
         opts = SimpleNamespace(**{**vars(options), 'image':image})
         report = gm.drill(repo, opts)
-        gm.save_report(report, options.out/repo.name/environment)
+        gm.save_report(report, options.out/repo.name/environment, repo_path=repo)
         return {'environment':environment, 'image':image, 'report':report}
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         cells = list(pool.map(cell, environments))
@@ -341,19 +341,19 @@ def report_panels(report):
     panels = ''
     if report.get('assistant'):
         assistant=report['assistant'];diagnosis=assistant.get('diagnosis',{})
-        panels += '<section><h2>AI maintainer assistant</h2><p>'+escape(assistant['interpretation'].get('summary',''))+'</p>'
-        if assistant['interpretation'].get('rejected_steps'):
-            panels += '<details><summary>Unsupported model actions that were not executed</summary><pre>'+escape(json.dumps(assistant['interpretation']['rejected_steps'],indent=2))+'</pre></details>'
+        panels += '<section><details><summary>Model interpretation and call records</summary><p>'+escape(assistant.get('interpretation',{}).get('summary',''))+'</p>'
+        if assistant.get('interpretation',{}).get('rejected_steps'):
+            panels += '<details><summary>Unsupported model actions that were not executed</summary><pre>'+escape(json.dumps(assistant.get('interpretation',{})['rejected_steps'],indent=2))+'</pre></details>'
         if diagnosis:
             panels += '<h3>Failure explanation · model hypothesis</h3><p>'+escape(diagnosis.get('diagnosis',''))+'</p><p>Category: '+escape(diagnosis.get('category'))+' · Model confidence: '+escape(diagnosis.get('confidence'))+'</p>'
             panels += '<p>Evidence: '+escape(', '.join(diagnosis.get('evidence',[])))+'</p>'
-        questions=diagnosis.get('questions',[]) or assistant['interpretation'].get('questions',[])
+        questions=diagnosis.get('questions',[]) or assistant.get('interpretation',{}).get('questions',[])
         if questions:
             panels += '<h3>Questions for the maintainer</h3><ul>'+''.join('<li>'+escape(q)+'</li>' for q in questions)+'</ul>'
         panels += '<p>Proposed documentation repair: '+('verified in a fresh container' if assistant.get('proposal_verified') else 'not verified')+'. Citations validate file/line existence, not the correctness of the model’s reasoning.</p>'
         if assistant.get('proposed_diff') and not assistant.get('proposal_verified'):
             panels += '<details><summary>Unverified proposal · do not treat as a working fix</summary><pre>'+escape(assistant['proposed_diff'])+'</pre></details>'
-        panels += '<details><summary>Model calls and cache use</summary><pre>'+escape(json.dumps(assistant['calls'],indent=2))+'</pre></details></section>'
+        panels += '<details><summary>Model calls and cache use</summary><pre>'+escape(json.dumps(assistant['calls'],indent=2))+'</pre></details></details></section>'
     panels += '<section><h2>Friction · measured sandbox time</h2><p>Execution time, not estimated human onboarding time. Totals exclude image startup and model inference.</p>'
     for phase,data in friction(report).items():
         panels += f'<h3>{phase.replace("_"," ").title()} · {data["sandbox_time_s"] if data["sandbox_time_s"] is not None else "not recorded"} seconds</h3>'
@@ -430,7 +430,7 @@ def main(argv):
             result=ship(options.repo.resolve(),options)
         else:
             result=gm.drill(options.repo.resolve(),options)
-            gm.save_report(result,options.out/options.repo.name)
+            gm.save_report(result,options.out/options.repo.name,repo_path=options.repo.resolve())
             diff=result.get('diff')
             run_url=os.environ.get('GITHUB_SERVER_URL','https://github.com')+'/'+os.environ.get('GITHUB_REPOSITORY','')+'/actions/runs/'+os.environ.get('GITHUB_RUN_ID','')
             artifact_note=f'[Open workflow and onboarding-evidence artifact]({run_url}).' if os.environ.get('GITHUB_RUN_ID') else 'See the onboarding-evidence workflow artifact for the full report.'

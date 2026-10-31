@@ -1,0 +1,109 @@
+{
+  "repo": "https://github.com/pypa/sampleproject",
+  "backend": "docker",
+  "image": "python:3.12-slim",
+  "goal": {
+    "cmd": "python -m unittest discover -v"
+  },
+  "model": {
+    "labeller": "qwen3:4b-instruct",
+    "cached": false
+  },
+  "preparation": [
+    {
+      "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 setuptools coverage",
+      "source": "pyproject.toml:10, pyproject.toml:130",
+      "stage": "preparation"
+    },
+    {
+      "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 --no-build-isolation -e .",
+      "source": "pyproject.toml:1",
+      "stage": "preparation"
+    }
+  ],
+  "original": {
+    "ok": true,
+    "status": "passed",
+    "events": [
+      {
+        "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 setuptools coverage",
+        "exit_code": 0,
+        "output": "Collecting setuptools\n  Downloading setuptools-84.2.1-py3-none-any.whl.metadata (6.6 kB)\nCollecting coverage\n  Downloading coverage-7.17.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.1 kB)\nDownloading setuptools-84.2.1-py3-none-any.whl (876 kB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 876.3/876.3 kB 4.2 MB/s eta 0:00:00\nDownloading coverage-7.17.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (261 kB)\nInstalling collected packages: setuptools, coverage\n  WARNING: The scripts coverage, coverage-3.12 and coverage3 are installed in '/workspace/.local/bin' which is not on PATH.\n  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.\nSuccessfully installed coverage-7.17.0 setuptools-84.2.1\n",
+        "goal": false,
+        "duration_s": 5.427,
+        "stage": "preparation",
+        "source": "pyproject.toml:10, pyproject.toml:130"
+      },
+      {
+        "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 --no-build-isolation -e .",
+        "exit_code": 0,
+        "output": "Obtaining file:///workspace\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting peppercorn (from sampleproject==4.0.0)\n  Downloading peppercorn-0.6-py3-none-any.whl.metadata (3.4 kB)\nDownloading peppercorn-0.6-py3-none-any.whl (4.8 kB)\nBuilding wheels for collected packages: sampleproject\n  Building editable for sampleproject (pyproject.toml): started\n  Building editable for sampleproject (pyproject.toml): finished with status 'done'\n  Created wheel for sampleproject: filename=sampleproject-4.0.0-0.editable-py3-none-any.whl size=4307 sha256=db675d2336b0a0993f9f036ee8a14c7194ab30bbaeeea6790c116d7b277637a3\n  Stored in directory: /tmp/pip-ephem-wheel-cache-1l4vvs1u/wheels/b0/41/ab/4e04a8678980f3355548f1261923479fbf2a713a7393a7dea8\nSuccessfully built sampleproject\nInstalling collected packages: peppercorn, sampleproject\n  WARNING: The script sample is installed in '/workspace/.local/bin' which is not on PATH.\n  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.\nSuccessfully installed peppercorn-0.6 sampleproject-4.0.0\n",
+        "goal": false,
+        "duration_s": 5.772,
+        "stage": "preparation",
+        "source": "pyproject.toml:1"
+      },
+      {
+        "cmd": "python -m unittest discover -v",
+        "exit_code": 0,
+        "output": "test_add_one (tests.test_simple.TestSimple.test_add_one) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n",
+        "goal": true,
+        "duration_s": 0.325
+      }
+    ],
+    "non_vacuous": true,
+    "reason": ""
+  },
+  "patches": [],
+  "baseline": [
+    {
+      "cmd": "python -m pip install -U setuptools wheel build",
+      "source": ".github/workflows/release.yml:25"
+    },
+    {
+      "cmd": "python -m build .",
+      "source": ".github/workflows/release.yml:27"
+    },
+    {
+      "cmd": "python -m pip install --upgrade nox",
+      "source": ".github/workflows/test.yml:23"
+    },
+    {
+      "cmd": "python -m nox -s tests-${{ matrix.python }}",
+      "source": ".github/workflows/test.yml:25"
+    },
+    {
+      "cmd": "python -m nox -s lint",
+      "source": ".github/workflows/test.yml:27"
+    }
+  ],
+  "label_disagreement": false,
+  "status": "healthy",
+  "assistant": {
+    "interpretation": {
+      "summary": "The README.md document describes a sample Python project with metadata defined in pyproject.toml. It specifies that the project does not cover best practices for version control, documentation, or testing. The README outlines that the project's metadata is defined in pyproject.toml and that the README file itself should be written in markdown or reStructuredText with UTF-8 encoding for use in PyPI and code-hosting services. No explicit setup or test commands are documented beyond referencing the metadata file and formatting guidelines.",
+      "questions": [
+        "What is the correct format for the pyproject.toml file in this project?",
+        "Are there any documented test or setup commands to run after cloning the repository?",
+        "Is there a specific version control or testing tool recommended in the documentation?"
+      ],
+      "steps": []
+    },
+    "calls": [
+      {
+        "model": "qwen3:4b-instruct",
+        "cached": false,
+        "duration_s": 19.625,
+        "rejected_attempts": []
+      }
+    ],
+    "proposal_verified": false
+  },
+  "duration_s": 32.719,
+  "revision": "621e4974ca25ce531773def586ba3ed8e736b3fc",
+  "evaluation_case": {
+    "url": "https://github.com/pypa/sampleproject",
+    "blind": false,
+    "prior": "Previously attempted before dependency preparation."
+  }
+}

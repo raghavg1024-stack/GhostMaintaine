@@ -1,0 +1,5 @@
+{"phase": "original", "cmd": "python app.py test", "exit_code": 1, "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 11, in <module>\n    assert Path('config.txt').exists(), 'missing config'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: missing config\n", "goal": true, "duration_s": 0.163}
+{"phase": "negative_control", "cmd": "python app.py test", "exit_code": 1, "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 11, in <module>\n    assert Path('config.txt').exists(), 'missing config'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: missing config\n", "goal": true, "duration_s": 0.113}
+{"phase": "verification", "cmd": "python app.py init", "exit_code": 0, "output": "", "goal": false, "duration_s": 0.145}
+{"phase": "verification", "cmd": "python app.py test", "exit_code": 0, "output": "GHOST_SMOKE_OK: 1 check passed\n", "goal": false, "duration_s": 0.111}
+{"phase": "verification", "cmd": "python app.py test", "exit_code": 0, "output": "GHOST_SMOKE_OK: 1 check passed\n", "goal": true, "duration_s": 0.095}

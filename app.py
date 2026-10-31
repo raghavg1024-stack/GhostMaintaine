@@ -10,10 +10,11 @@ import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 import ghostmaintainer as gm
 import features
+from runner_setup import AI_PROFILES, find_docker, ollama_config
 
 ROOT = Path(__file__).resolve().parent
 JOBS = {}
@@ -29,6 +30,32 @@ def repository_url(value):
     return f'https://github.com/{match[1]}/{match[2]}.git'
 
 
+def validate_request_flags(request):
+    """Validate safety-related request flags without requiring an HTTP server."""
+    for key in ('network', 'prepare', 'no_cache', 'remote_ai'):
+        if key in request and type(request[key]) is not bool:
+            raise ValueError(f'{key} must be a boolean')
+    if request.get('prepare') and not request.get('network'):
+        raise ValueError('Dependency preparation requires explicit container network permission')
+    profile=request.get('resource_profile','balanced')
+    if not isinstance(profile,str) or profile not in AI_PROFILES:
+        raise ValueError('Choose low, balanced, or rules-only resource mode')
+    if request.get('mode')=='assist' and profile!='rules':
+        remote=ollama_config()[1]
+        if remote and not request.get('remote_ai'):
+            raise ValueError('Remote Ollama is configured. Explicit consent is required before sending setup data.')
+    if request.get('remote_ai'):
+        if request.get('mode')!='assist' or profile=='rules':
+            raise ValueError('Remote inference consent applies only to AI assistant mode')
+        if not ollama_config()[1]:
+            raise ValueError('Remote inference requires a configured HTTPS GHOST_OLLAMA_URL')
+
+
+def validate_remote_health_consent(remote_consent, token):
+    if remote_consent and not secrets.compare_digest(str(token or ''), TOKEN):
+        raise ValueError('Remote readiness checks require this local app session token')
+
+
 def update(job_id, **values):
     with LOCK:
         JOBS[job_id].update(values)
@@ -39,6 +66,10 @@ def execute(job_id, request):
     try:
         folder.mkdir(parents=True)
         mode = request.get('mode', 'check')
+        profile=request.get('resource_profile','balanced')
+        if mode=='assist' and profile=='rules':
+            mode='check'
+        update(job_id,mode=mode,resource_profile=profile)
         if mode in ('bench-models', 'scan'):
             update(job_id, message='Measuring models…' if mode == 'bench-models' else 'Scanning the selected repositories with safety filtering…')
             options = SimpleNamespace(out=folder/'result', image='python:3.12-slim', net=bool(request.get('network')),
@@ -67,14 +98,18 @@ def execute(job_id, request):
             raise ValueError('This prototype requires a README.md file at the repository root.')
         revision = subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD'], text=True, encoding='utf-8', errors='replace').strip()
         update(job_id, revision=revision)
+        from runner_setup import default_goal
         target = request.get('target', '').strip()
         if target:
             gm.write_json(repo / 'ghostmaintainer.json', {'cmd': target})
         elif not (repo / 'ghostmaintainer.json').is_file():
-            gm.write_json(repo / 'ghostmaintainer.json', {'cmd': 'python -m unittest discover -v'})
+            gm.write_json(repo / 'ghostmaintainer.json', {'cmd': default_goal(repo)})
         update(job_id, message='Following the README and testing setup in Docker. This may take several minutes…')
+        default_model=AI_PROFILES[profile]['model']
+        if profile=='balanced' and os.environ.get('GHOST_MODEL'):
+            default_model=os.environ['GHOST_MODEL']
         options = SimpleNamespace(backend='docker', net=bool(request.get('network')),
-                                  labeller=request.get('model') or ('qwen3:4b-instruct' if mode=='assist' else 'rules'),image='python:3.12-slim',out=folder/'result', matrix=request.get('matrix') or 'py3.9,py3.11,py3.12')
+                                  labeller=request.get('model') or (default_model if mode=='assist' else 'rules'),image=os.environ.get('GHOST_IMAGE','python:3.12-slim'),prepare=request.get('prepare',False),no_cache=request.get('no_cache',False),resource_profile=profile,remote_consent=request.get('remote_ai',False),progress=lambda message:update(job_id,message=message),out=folder/'result', matrix=request.get('matrix') or 'py3.9,py3.11,py3.12')
         if mode == 'matrix':
             update(job_id,message='Running the same instructions across Python versions…')
             result=features.matrix(repo,options)
@@ -94,7 +129,9 @@ def execute(job_id, request):
         if mode == 'ship':
             update(job_id,message='Verifying the generated setup script in another fresh container…')
             report['ship']=features.ship(repo,options,report,folder/'result'/'ship')
-        gm.save_report(report, folder / 'result')
+        report['repo']=request['url'].removesuffix('.git')
+        report['revision']=revision
+        gm.save_report(report, folder / 'result', repo_path=repo)
         update(job_id, state='done', status=report['status'], message='Check complete.',
                report=f'/reports/{job_id}/replay.html', duration=report['duration_s'])
     except Exception as error:
@@ -122,8 +159,29 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == '/':
             return self.respond(200, (ROOT / 'web' / 'index.html').read_bytes(), 'text/html; charset=utf-8')
+        if path == '/api/health':
+            from runner_setup import health
+            query=parse_qs(urlsplit(self.path).query)
+            profile=query.get('profile',['balanced'])[0]
+            if profile not in AI_PROFILES:
+                return self.respond(400,{'error':'Unknown resource profile'})
+            default_model=AI_PROFILES[profile]['model']
+            if profile=='balanced' and os.environ.get('GHOST_MODEL'):
+                default_model=os.environ['GHOST_MODEL']
+            model=query.get('model',[default_model])[0]
+            if not re.fullmatch(r'[A-Za-z0-9_.:/-]{1,150}',model):
+                return self.respond(400,{'error':'Invalid model name'})
+            remote_consent=query.get('remote',['0'])[0]=='1'
+            try:
+                validate_remote_health_consent(remote_consent,self.headers.get('X-Ghost-Token'))
+            except ValueError as error:
+                return self.respond(403,{'error':str(error)})
+            try:
+                return self.respond(200,health(model,remote_consent=remote_consent))
+            except ValueError as error:
+                return self.respond(400,{'error':str(error)})
         if path == '/api/session':
-            return self.respond(200, {'token': TOKEN, 'docker': bool(shutil.which('docker')), 'git': bool(shutil.which('git'))})
+            return self.respond(200, {'token': TOKEN, 'docker': bool(find_docker()), 'git': bool(shutil.which('git'))})
         match = re.fullmatch(r'/api/jobs/([a-f0-9]{16})', path)
         if match:
             with LOCK:
@@ -133,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
         if match:
             directory = (ROOT / 'runs' / 'web' / match[1] / 'result').resolve()
             file = (directory / match[2]).resolve()
-            allowed = {'replay.html','matrix.html','summary.html','report.json','events.jsonl','README.patch','README.patched.md','setup.sh','devcontainer.json','AGENTS_setup.md','verification.json','version-note.patch','matrix.json','BENCH.md','bench_models.json','SCAN.md','scan_summary.json','scan_results.jsonl'}
+            allowed = {'replay.html','matrix.html','summary.html','report.json','events.jsonl','README.patch','README.patched.md','setup.sh','devcontainer.json','AGENTS_setup.md','verification.json','version-note.patch','matrix.json','BENCH.md','bench_models.json','SCAN.md','scan_summary.json','scan_results.jsonl','evidence.md'}
             if directory in file.parents and file.name in allowed and file.is_file():
                 content_type = 'text/plain' if file.suffix in ('.md', '.patch', '.jsonl') else mimetypes.guess_type(file.name)[0] or 'application/octet-stream'
                 return self.respond(200, file.read_bytes(), content_type + '; charset=utf-8')
@@ -154,6 +212,7 @@ class Handler(BaseHTTPRequestHandler):
             request = json.loads(self.rfile.read(length))
             if not isinstance(request, dict):
                 raise ValueError('Invalid request')
+            validate_request_flags(request)
             mode = request.get('mode','check')
             if mode not in ('assist','check','ship','matrix','drift','bench-models','scan'):
                 raise ValueError('Unknown analysis mode')
@@ -184,4 +243,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     print(f'GhostMaintainer is ready: http://127.0.0.1:{PORT}', flush=True)
-    ThreadingHTTPServer(('127.0.0.1', PORT), Handler).serve_forever()
+    server=ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
+    if os.environ.get('GHOST_OPEN_BROWSER')=='1':
+        import webbrowser
+        webbrowser.open(f'http://127.0.0.1:{PORT}')
+    server.serve_forever()

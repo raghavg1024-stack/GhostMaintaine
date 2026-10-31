@@ -1,11 +1,13 @@
 # GhostMaintainer
 
-**A local AI maintainer assistant for understanding and checking repository onboarding.**
+**GhostMaintainer checks whether a new contributor can follow a repository's setup on a clean machine, then proposes and verifies a documentation repair.**
 
 [![CI](https://github.com/raghavg1024-stack/GhostMaintaine/actions/workflows/check.yml/badge.svg)](https://github.com/raghavg1024-stack/GhostMaintaine/actions/workflows/check.yml)
 [MIT license](LICENSE) · [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Evidence](docs/EVIDENCE.md) · [Roadmap](docs/ROADMAP.md)
 
-Paste a public GitHub repository URL into the local website. GhostMaintainer uses an installed Ollama model to interpret onboarding documents, explain setup failures, propose evidence-backed documentation edits, and ask specific maintainer questions. Docker checks proposed repairs against a fixed test target in a fresh environment.
+Paste a public GitHub repository URL into the local website. GhostMaintainer reads a small, selected set of onboarding evidence, runs its instructions in a clean Docker environment, explains failures, and verifies documentation repairs against the same test target.
+
+GitHub Issues collect problems someone has reported. GhostMaintainer checks whether setup instructions work before a contributor has to discover and report a failure. It is an onboarding check, not an issue summarizer or a general code debugger.
 
 **Status: hackathon prototype.** A live AI fixture repair has passed; reliable repair on unfamiliar real repositories remains unverified. Model explanations can be wrong. This is a local application, not a deployed public service or a universal setup-success guarantee.
 
@@ -13,7 +15,7 @@ Paste a public GitHub repository URL into the local website. GhostMaintainer use
 
 ## Start the website
 
-Install **Python 3.11+**, **Git**, **Docker** with Linux containers, and **Ollama** for AI mode. Start Docker and Ollama first. No paid API key is required.
+Install **Python 3.11+**, **Git**, and **Docker** with Linux containers. Install Ollama for local AI mode. Local inference needs no paid API key.
 
 ```sh
 git clone https://github.com/raghavg1024-stack/GhostMaintaine.git
@@ -27,11 +29,35 @@ Open **http://127.0.0.1:8765**. On Windows, `./start.ps1` is an alternative laun
 
 Assistant mode defaults to the tested installed tag `qwen3:4b-instruct`. Install an instruction model through Ollama if needed and select its exact installed name in **Check settings**. Model weights are not included; availability and license depend on the model you install.
 
+### Choose a resource mode
+
+| Mode | Default model | Prompt budget | What to expect |
+|---|---|---:|---|
+| Low memory | `qwen3:1.7b` | 4,096 context tokens; 6,000 selected characters | Smaller model and shorter evidence pack; reasoning quality and speed vary by PC |
+| Balanced | `qwen3:4b-instruct` | 8,192 context tokens; 16,000 selected characters | Default assistant mode |
+| Rules only | None | No model prompt | Deterministic checks only; cannot interpret setup prose |
+
+Ollama lists the [Qwen3 1.7B and 4B quantized model files](https://ollama.com/library/qwen3) at about 1.4 GB and 2.5 GB respectively. These are weight sizes, not total memory requirements; Docker, model runtime, and context need additional memory. The app sends selected setup documents and a small number of relevant files, not the whole repository. It truncates oversized files to the profile budget and records the files sent in `report.json`.
+
+### Optional remote Ollama
+
+Local inference is the default. To use an Ollama server over HTTPS instead, set `GHOST_OLLAMA_URL` before starting GhostMaintainer; optionally set `GHOST_OLLAMA_API_KEY` for that server:
+
+```powershell
+$env:GHOST_OLLAMA_URL = 'https://ollama.example:11434'
+$env:GHOST_OLLAMA_API_KEY = 'your-server-key' # optional
+python app.py
+```
+
+The form asks for explicit consent before checking or sending selected setup documents, configuration excerpts, and trimmed failure logs to the remote server. The whole repository is not sent. This moves model inference only: cloning and Docker verification still run on this PC.
+
+Remote mode is not preconfigured, and a rules-only check makes no model call. Inspect the repository before running it; log redaction cannot guarantee that every secret is removed.
+
 1. Choose **AI maintainer assistant**.
 2. Paste an inspected public GitHub root URL.
-3. In **Check settings**, choose the intended test command and optionally enable dependency-download networking.
+3. In **Check settings**, choose a resource mode and intended test command; optionally enable dependency-download networking.
 4. Click **Ask GhostMaintainer** and read the explanation, evidence, questions and result.
-5. Review any verified diff before applying it yourself. The web app never opens PRs or writes upstream.
+5. Review the exact verified documentation diff before applying it yourself. The web app never opens PRs or writes upstream.
 
 The default goal is `python -m unittest discover -v` unless the repository supplies `ghostmaintainer.json`. Change it for projects using another runner. Zero tests is not a pass. Supported execution is currently Python/Linux with a root README.md; missing tools, complex setup and unsupported repositories may remain blocked.
 
@@ -50,8 +76,9 @@ Up to three repair attempts are allowed. Original instructions are repeated as a
 
 | Capability | Available behavior |
 |---|---|
-| AI assistant | Interpretation, failure explanation, documentation proposals and maintainer questions |
-| Rules-based drill | Legacy bounded search over config commands, without Ollama |
+| AI assistant | Interpretation, failure explanation, documentation proposals and maintainer questions; low-memory and balanced context profiles |
+| Rules-only setup check | Deterministic check with no Ollama or model; cannot interpret prose |
+| Rules-based drill | Legacy bounded search over config commands |
 | Setup artifacts | Generates setup.sh, devcontainer.json and agent instructions; setup.sh alone is separately verified |
 | Drift audit | Advisory literal Python/Node environment-variable and version checks |
 | Python matrix | Runs multiple Python images; grid and CI-sourced version note |
@@ -85,8 +112,10 @@ Save that as `ghostmaintainer.json` at its root, or provide the command through 
 
 ## Verified evidence and limits
 
-- **25 regression tests passed** with Docker locally. Seven assistant tests validate boundaries with mocked responses; they are not model-accuracy tests.
-- A schema-constrained AI `haunted_env` repair passed in **16.697 seconds** with **three uncached Qwen calls** and fresh original/control/verification runs.
+Latest upgraded run: the synthetic `haunted_env` repair completed in **98.46 seconds**, with all three recorded Qwen calls uncached. Two selected real repositories passed with preparation enabled; a blind Humanize case was inconclusive. [All case records](docs/REAL_REPO_RESULTS.md).
+
+- Current local run: **48 tests discovered; 41 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
+- An earlier schema-constrained AI `haunted_env` repair passed in **16.697 seconds** with **three uncached Qwen calls** and fresh original/control/verification runs.
 - A multi-gap fixture repair and a missing-token question were also recorded. Their runtimes/context settings differ.
 - Python matrix: 3.9 fails the version-sensitive fixture; 3.11 and 3.12 pass.
 - Both example setup scripts passed separate fresh-container verification.
@@ -124,3 +153,9 @@ Priorities are **maintainer answer-and-rerun conversations**, **explicit environ
 ## Contribute and credits
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Application code is MIT licensed. Python, Git, Docker, Ollama, models and sample inputs retain their own terms. AI coding assistance: OpenAI Codex; runtime AI is the selected local model. Prior art includes [Repo2Run](https://github.com/bytedance/Repo2Run) and [Rundoc](https://github.com/eclecticiq/rundoc); no first-of-its-kind claim is made. Upstream benchmark input: [Boltons](https://github.com/mahmoud/boltons), BSD licensed. Other evaluated input: [PyPA sampleproject](https://github.com/pypa/sampleproject), MIT licensed.
+
+## Judge-ready local demonstration
+
+Double-click `start.cmd` on Windows, or run `python doctor.py` then `python app.py`. The launcher checks the real Docker engine and installed Ollama model. In Check settings, select **Live AI demo** to bypass response caching. Optional dependency preparation requires a separate explicit network checkbox and records sources/install logs in every fresh sandbox. Leave the test field blank to use the project config or detect pytest/unittest.
+
+See [judge walkthrough](docs/JUDGE_DEMO.md), [all real-repository results](docs/REAL_REPO_RESULTS.md), and [recorded synthetic fixture evidence](docs/evidence/judge-live/report.json). The fixture achieved a verified uncached repair in 98.46 seconds; the real-repository evaluation demonstrated two environment-assisted healthy outcomes, one inconclusive outcome, and no automatic real-repository repair. These results do not imply a guaranteed hackathon score.

@@ -91,6 +91,21 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(result['status'], 'environment_blocked')
             self.assertFalse(result['ok'])
 
+    @unittest.skipUnless(os.environ.get('GHOST_TEST_BACKEND') == 'docker', 'Docker integration check')
+    def test_missing_pytest_is_environment_blocked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result=gm.run(Path(directory),[],{'cmd':'python -m pytest -q'},'docker')
+        self.assertEqual(result['status'],'environment_blocked')
+        self.assertIn('No module named pytest',result['events'][-1]['output'])
+        self.assertIn('not proof of a repository defect',result['reason'])
+
+    @unittest.skipUnless(os.environ.get('GHOST_TEST_BACKEND') == 'docker', 'Docker integration check')
+    def test_network_disabled_dependency_error_is_environment_blocked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result=gm.run(Path(directory),[],{'cmd':"python -c \"import sys; print('Temporary failure in name resolution'); sys.exit(1)\""},'docker',False)
+        self.assertEqual(result['status'],'environment_blocked')
+        self.assertIn('networking is disabled',result['reason'])
+
     @unittest.skipUnless(os.environ.get('GHOST_TEST_BACKEND') == 'docker', 'Docker Unicode check')
     def test_unicode_container_output(self):
         with tempfile.TemporaryDirectory() as directory:

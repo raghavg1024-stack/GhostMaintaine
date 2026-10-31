@@ -1,0 +1,79 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GhostMaintainer · Setup result</title>
+<style>*{box-sizing:border-box}body{background:#f5f7fa;color:#172238;font:17px/1.6 system-ui;margin:0}main{max-width:1020px;margin:auto;padding:40px 24px}header{margin-bottom:28px}.brand{font-weight:800;color:#285647;letter-spacing:.08em;font-size:14px}h1{font-size:clamp(30px,5vw,46px);line-height:1.15;letter-spacing:-.04em;margin:18px 0}h2{font-size:23px;margin:0 0 12px}h3{font-size:17px}p{margin:8px 0;color:#4b5870}.flow{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:28px 0}.card,section{background:white;border:1px solid #d8e0e9;border-radius:16px;padding:26px;margin-bottom:20px}.card{margin:0;border-top:5px solid #a6afbc}.red{border-top-color:#ce493e}.green{border-top-color:#198255}.label{font-size:13px;font-weight:800;letter-spacing:.08em}.state{font-size:29px;font-weight:800;margin:8px 0}.red .state{color:#b72e27}.green .state{color:#117445}.step{color:#53617a;font-size:13px;text-transform:uppercase;letter-spacing:.1em;font-weight:800;margin-bottom:10px}.change{background:#ecf8f0;border-left:4px solid #22814e;border-radius:6px;padding:16px;margin:14px 0}.change strong{font-family:ui-monospace,monospace;color:#11552d}.change p{font-size:14px}pre{background:#f1f4f8;color:#172238;border-radius:8px;padding:18px;white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.6 ui-monospace,monospace}summary{cursor:pointer;padding:12px 0;font-weight:650}details{border-top:1px solid #e1e6ed}a{color:#175fa6}footer{font-size:14px;color:#59677d;padding:10px 0 30px}.meta{font-size:14px}.success{color:#137346;font-weight:750}@media(max-width:650px){.flow{grid-template-columns:1fr}main{padding:24px 16px}.card,section{padding:20px}}</style></head><body><main><header><div class="brand">GHOSTMAINTAINER</div><h1>README fixed. Setup now passes.</h1><p>We followed the README, checked what went wrong, and tested the result in a clean environment.</p><p class="meta">Repository: <strong>haunted_env</strong> · Recorded run · 98.46 seconds</p><p><a href="evidence.md">Download evidence summary</a> · <a href="report.json">Raw JSON</a></p></header><section><div class="step">Local AI evidence</div><h2>qwen3:4b-instruct</h2><p>Inference endpoint: 127.0.0.1:11434 (Ollama on this PC). All recorded calls were freshly generated.</p><p>AI reasoning is a hypothesis. Docker execution determines verification.</p></section><div class="flow"><div class="card red"><div class="label">BEFORE · ORIGINAL README</div><div class="state">Failed</div><p>The app needs a configuration file. The README skips the command that creates it.</p></div><div class="card green"><div class="label">AFTER · PATCHED README</div><div class="state">Passed</div><p>A fresh run passed the same check.</p></div></div><section><div class="step">AI explanation and maintainer questions</div><h2>documentation_gap</h2><p>The command `python app.py test` fails because the required configuration file `config.txt` does not exist. The application logic in `app.py` (line 11) asserts that `config.txt` must exist before proceeding to the test mode. Since the file is missing, the assertion raises an `AssertionError`. The README.md currently only shows a bare command without explaining that the `init` mode must be run first to generate `config.txt`. This creates a gap in onboarding guidance, leading contributors to execute `test` without first initializing the environment.</p><p>Evidence: app.py:11, README.md:5</p><ul><li>Should the `init` mode be explicitly called during onboarding, and if so, should it be included in the setup sequence in the README?</li></ul></section><section><div class="step">1 · What went wrong</div><h2>The original instructions did not complete</h2><p>The app needs a configuration file. The README skips the command that creates it.</p><p>Stopped at this command:</p><pre>python app.py test</pre></section><section><div class="step">2 · What changed</div><h2>Missing instructions added</h2><div class="change"><strong>+ Local contributor setup:
+
+1. Run initialization to create required configuration:
+
+```sh
+python app.py init
+```
+
+2. Run test to verify environment:
+
+```sh
+python app.py test
+```
+
+&gt; Note: The `init` command creates `config.txt`. Without it, `test` will fail due to missing configuration.</strong><p>Found in README.md:5. Added to the README before the failing step.</p></div><p>Changes affect documentation only. Application code was not changed.</p></section><section><div class="step">3 · Did it work?</div><h2>Yes — the verification check passed</h2><p>The check below was fixed before repair and was not weakened to make the result pass.</p><pre>python app.py test</pre><p class="success">Actual output from the check:</p><pre>GHOST_SMOKE_OK: 1 check passed</pre><p>The original instructions failed again in a separate clean run. The patched instructions passed in another clean run.</p><p><a href="README.patch">Download the README patch</a> · <a href="README.patched.md">Read the updated README</a></p></section><section><details><summary>Technical evidence and full logs</summary><p>Execution: docker · Command selection: qwen3:4b-instruct · Cached selection: False</p><p>Labeller disagreement: False</p><h3>Original · failed</h3><details><summary>python app.py test · exit 1</summary><pre>Traceback (most recent call last):
+  File &quot;/workspace/app.py&quot;, line 11, in &lt;module&gt;
+    assert Path(&#x27;config.txt&#x27;).exists(), &#x27;missing config&#x27;
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: missing config
+</pre></details><h3>Negative Control · failed</h3><details><summary>python app.py test · exit 1</summary><pre>Traceback (most recent call last):
+  File &quot;/workspace/app.py&quot;, line 11, in &lt;module&gt;
+    assert Path(&#x27;config.txt&#x27;).exists(), &#x27;missing config&#x27;
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: missing config
+</pre></details><h3>Verification · passed</h3><details><summary>python app.py init · exit 0</summary><pre></pre></details><details><summary>python app.py test · exit 0</summary><pre>GHOST_SMOKE_OK: 1 check passed
+</pre></details><details><summary>python app.py test · exit 0</summary><pre>GHOST_SMOKE_OK: 1 check passed
+</pre></details><h3>Exact documentation diff</h3><pre>--- a/README.md
++++ b/README.md
+@@ -2,6 +2,16 @@
+ 
+ Local contributor setup:
+ 
++1. Run initialization to create required configuration:
++
++```sh
++python app.py init
++```
++
++2. Run test to verify environment:
++
+ ```sh
+ python app.py test
+ ```
++
++&gt; Note: The `init` command creates `config.txt`. Without it, `test` will fail due to missing configuration.
+</pre><h3>Command sources</h3><ul><li><code>Local contributor setup:
+
+1. Run initialization to create required configuration:
+
+```sh
+python app.py init
+```
+
+2. Run test to verify environment:
+
+```sh
+python app.py test
+```
+
+&gt; Note: The `init` command creates `config.txt`. Without it, `test` will fail due to missing configuration.</code> ← README.md:5</li></ul><p><a href="report.json">Raw report data</a> · <a href="events.jsonl">Execution events</a></p></details></section><footer>This is a recorded result, not a live terminal. Synthetic demo repositories contain deliberately missing instructions. Passing verifies the declared check in this environment; it does not prove that every feature works.</footer><section><details><summary>Model interpretation and call records</summary><p>The README.md document specifies a single command for local contributor setup, but provides no detailed prerequisites, test instructions, or environment requirements beyond the command itself. No setup or test commands are elaborated beyond the example invocation of a Python script.</p><h3>Failure explanation · model hypothesis</h3><p>The command `python app.py test` fails because the required configuration file `config.txt` does not exist. The application logic in `app.py` (line 11) asserts that `config.txt` must exist before proceeding to the test mode. Since the file is missing, the assertion raises an `AssertionError`. The README.md currently only shows a bare command without explaining that the `init` mode must be run first to generate `config.txt`. This creates a gap in onboarding guidance, leading contributors to execute `test` without first initializing the environment.</p><p>Category: documentation_gap · Model confidence: high</p><p>Evidence: app.py:11, README.md:5</p><h3>Questions for the maintainer</h3><ul><li>Should the `init` mode be explicitly called during onboarding, and if so, should it be included in the setup sequence in the README?</li></ul><p>Proposed documentation repair: verified in a fresh container. Citations validate file/line existence, not the correctness of the model’s reasoning.</p><details><summary>Model calls and cache use</summary><pre>[
+  {
+    &quot;model&quot;: &quot;qwen3:4b-instruct&quot;,
+    &quot;cached&quot;: false,
+    &quot;duration_s&quot;: 25.123,
+    &quot;rejected_attempts&quot;: []
+  },
+  {
+    &quot;model&quot;: &quot;qwen3:4b-instruct&quot;,
+    &quot;cached&quot;: false,
+    &quot;duration_s&quot;: 37.73
+  },
+  {
+    &quot;model&quot;: &quot;qwen3:4b-instruct&quot;,
+    &quot;cached&quot;: false,
+    &quot;duration_s&quot;: 23.415,
+    &quot;rejected_attempts&quot;: []
+  }
+]</pre></details></details></section><section><h2>Friction · measured sandbox time</h2><p>Execution time, not estimated human onboarding time. Totals exclude image startup and model inference.</p><h3>Original · 0.163 seconds</h3><div><code>python app.py test</code> · 0.163 s · failed<div style="height:7px;background:#bc453b;width:100%"></div></div><p>Slowest: python app.py test</p><h3>Negative Control · 0.113 seconds</h3><div><code>python app.py test</code> · 0.113 s · failed<div style="height:7px;background:#bc453b;width:100%"></div></div><p>Slowest: python app.py test</p><h3>Verification · 0.351 seconds</h3><div><code>python app.py init</code> · 0.145 s <div style="height:7px;background:#2c8a59;width:100%"></div></div><div><code>python app.py test</code> · 0.111 s <div style="height:7px;background:#2c8a59;width:77%"></div></div><div><code>python app.py test</code> · 0.095 s <div style="height:7px;background:#2c8a59;width:66%"></div></div><p>Slowest: python app.py init</p></section><section><h2>Time to first verified green</h2><p>0.627 seconds of measured command execution across original, control, and repair trials. Excludes model inference, container startup, and image downloads; not human time.</p></section><section><h2>Replay the recorded run</h2><p>Move the slider or use its arrow keys. This replays saved evidence; it does not rerun commands.</p><input id="replaySlider" aria-label="Recorded step" type="range" min="0" max="4" value="0" style="width:100%"><ol><li id="timeline-0">original · python app.py test · failed</li><li id="timeline-1">negative_control · python app.py test · failed</li><li id="timeline-2">verification · python app.py init · passed</li><li id="timeline-3">verification · python app.py test · passed</li><li id="timeline-4">verification · python app.py test · passed</li></ol><p id="replayLabel"></p><pre id="replayOutput"></pre><p id="replayScore"></p><noscript><p>JavaScript is off. Expand the full logs above to read the complete static timeline.</p></noscript></section><script type="application/json" id="replayData">[{"phase": "original", "cmd": "python app.py test", "exit_code": 1, "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 11, in \u003cmodule\u003e\n    assert Path('config.txt').exists(), 'missing config'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: missing config\n", "goal": true, "duration_s": 0.163}, {"phase": "negative_control", "cmd": "python app.py test", "exit_code": 1, "output": "Traceback (most recent call last):\n  File \"/workspace/app.py\", line 11, in \u003cmodule\u003e\n    assert Path('config.txt').exists(), 'missing config'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: missing config\n", "goal": true, "duration_s": 0.113}, {"phase": "verification", "cmd": "python app.py init", "exit_code": 0, "output": "", "goal": false, "duration_s": 0.145}, {"phase": "verification", "cmd": "python app.py test", "exit_code": 0, "output": "GHOST_SMOKE_OK: 1 check passed\n", "goal": false, "duration_s": 0.111}, {"phase": "verification", "cmd": "python app.py test", "exit_code": 0, "output": "GHOST_SMOKE_OK: 1 check passed\n", "goal": true, "duration_s": 0.095}]</script><script>(()=>{const events=JSON.parse(document.getElementById("replayData").textContent),slider=document.getElementById("replaySlider");function show(){const i=Number(slider.value),e=events[i],seen=events.slice(0,i+1).filter(x=>x.phase===e.phase),passed=seen.filter(x=>x.exit_code===0).length;events.forEach((_,j)=>{const row=document.getElementById("timeline-"+j);row.style.background=j===i?"#d7efdf":"transparent";row.setAttribute("aria-current",String(j===i));});document.getElementById("replayLabel").textContent=`Step ${i+1} of ${events.length} · ${e.phase} · ${e.cmd} · ${e.exit_code===0?"passed":"failed"}`;document.getElementById("replayOutput").textContent=e.output;document.getElementById("replayScore").textContent=`${passed}/${seen.length} executed steps passed in this phase so far. This is step completion, not overall correctness.`;}slider.addEventListener("input",show);show();})();</script></main></body></html>

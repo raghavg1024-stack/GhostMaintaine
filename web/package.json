@@ -1,0 +1,1 @@
+{"name":"ghostmaintainer-ui","private":true,"version":"0.1.0","scripts":{"build":"node build.mjs"},"dependencies":{"react":"19.3.1","react-dom":"19.3.1","@fontsource/inter":"5.2.8"},"devDependencies":{"tailwindcss":"4.1.18","@tailwindcss/cli":"4.1.18","esbuild":"0.25.12"}}

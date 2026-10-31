@@ -26,7 +26,7 @@ python -m unittest -v
 python ghostmaintainer.py eval --backend docker
 ```
 
-At the latest recorded full run, **25 tests passed**. Seven assistant validation tests use mocked model responses; they test boundaries, not model intelligence. Live model execution was tested separately on fixtures. See [evidence](EVIDENCE.md).
+Current Windows run: **48 tests discovered, 41 passed, 7 Docker-only tests skipped**. The latest recorded full Docker suite before the resource-profile changes had 38 tests pass. Assistant validation tests use mocked model responses; they test boundaries, not model intelligence. Live model execution was tested separately on fixtures. See [evidence](EVIDENCE.md).
 
 Fixtures contain deliberately omitted steps. Their exact-byte integrity records are stored in `fixtures/manifest.json`; `.gitattributes` preserves fixture line endings across clones. Hash input paths are sorted by their relative POSIX names so Windows and Linux produce the same digest. The first Ubuntu CI run caught the old platform-dependent ordering; the fix changes ordering only, not fixture content. Do not regenerate the hashes to hide unreviewed fixture changes. Never run tests that edit the original fixtures in place.
 
@@ -70,3 +70,7 @@ PR analysis has contents-read access, checkout credential persistence is disable
 Open a branch, make a focused change, add meaningful regression coverage, and run the appropriate suite. Model prompt changes require fresh live evaluations because cached answers can hide behavior changes. State whether results are cached or uncached. Keep application repairs docs-only; never weaken the fixed goal to claim success. Describe known failures honestly.
 
 Do not commit downloaded repositories, model weights, runtime caches, secrets, or private run logs. The project uses MIT licensing; model/runtime dependencies retain their own terms.
+
+## Upgrade validation
+
+The pre-profile runner passed 38 Docker-backed tests, including explicit preparation/network permission checks at the HTTP boundary. Run `GHOST_TEST_BACKEND=docker python -m unittest discover -v` on Linux, or set `$env:GHOST_TEST_BACKEND="docker"` in PowerShell before running the suite. `python evaluate_real.py --net --out runs/a-new-output-folder` performs the selected real-repository evaluation and records every case. Use a new output folder; existing checkouts are not overwritten. Preparation can execute project build hooks inside Docker and must only be enabled for inspected, trusted repositories.

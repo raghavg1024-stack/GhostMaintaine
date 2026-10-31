@@ -1,10 +1,58 @@
+import json
 import unittest
+import tempfile
+from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 import assistant as a
 
 
 class AssistantTests(unittest.TestCase):
+    def test_low_context_keeps_readme_and_respects_character_budget(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo=Path(folder)
+            (repo/'README.md').write_text('x'*20000,encoding='utf-8')
+            files=a.context(repo,profile='low')
+        self.assertIn('README.md',files)
+        self.assertLessEqual(sum(map(len,files.values())),a.AI_PROFILES['low']['max_chars'])
+        self.assertEqual(len(files['README.md']),a.AI_PROFILES['low']['max_chars'])
+
+    def test_remote_safe_context_excludes_source_and_environment_files(self):
+        with tempfile.TemporaryDirectory() as folder:
+            repo=Path(folder)
+            (repo/'README.md').write_text('Run tests with pytest.',encoding='utf-8')
+            (repo/'pyproject.toml').write_text('[tool.pytest]\n',encoding='utf-8')
+            (repo/'app.py').write_text('secret = "never send"',encoding='utf-8')
+            (repo/'.env').write_text('PASSWORD=never-send',encoding='utf-8')
+            files=a.context(repo,profile='low',remote_safe=True)
+        self.assertIn('README.md',files)
+        self.assertIn('pyproject.toml',files)
+        self.assertNotIn('app.py',files)
+        self.assertNotIn('.env',files)
+
+    def test_low_model_request_uses_small_context_budget(self):
+        response=BytesIO(b'{"response":"{\\"ok\\": true}"}')
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder)/'.cache').mkdir()
+            with patch.object(a.gm,'ROOT',Path(folder)),patch('urllib.request.urlopen',return_value=response) as fetch:
+                result,meta=a.ask('test-profile-context','tiny prompt',{},profile='low')
+        payload=json.loads(fetch.call_args.args[0].data)
+        self.assertEqual(payload['options']['num_ctx'],4096)
+        self.assertEqual(payload['options']['num_predict'],800)
+        self.assertEqual(meta['resource_profile'],'low')
+        self.assertEqual(meta['context_tokens'],4096)
+
+    def test_remote_failure_evidence_is_trimmed_and_redacts_common_secrets(self):
+        answer={'diagnosis':'Missing credential','category':'needs_credentials','confidence':'low','evidence':[],'questions':[],'edits':[]}
+        failure={'status':'failed','reason':'failed','events':[{'cmd':'run','exit_code':1,'output':'x'*900+' token=supersecret'}]}
+        with patch.object(a,'ask',return_value=(answer,{})) as model:
+            a.propose({'README.md':'Install and test.'},{'README.md':'Install and test.'},failure,{'cmd':'pytest'},'small',profile='low',remote=True)
+        sent=model.call_args.args[2]['failure']['events'][0]['output']
+        self.assertLessEqual(len(sent),800)
+        self.assertNotIn('supersecret',sent)
+        self.assertIn('[REDACTED]',sent)
+
     def test_invalid_repair_returns_unverified_report(self):
         failure={'ok':False,'status':'failed','events':[{'cmd':'python app.py test','exit_code':1,'output':'missing config','goal':False}]}
         options=SimpleNamespace(backend='docker',labeller='test-model',net=False,image='python:3.12-slim')
@@ -14,6 +62,51 @@ class AssistantTests(unittest.TestCase):
         self.assertFalse(report['assistant']['proposal_verified'])
         self.assertNotIn('diff',report)
         self.assertIn('bad patch',report['assistant']['validation_error'])
+
+    def test_plan_corrects_invalid_citation_once(self):
+        invalid={'steps':[{'cmd':'python check.py','citations':['missing.md:1']}]}
+        valid={'steps':[{'cmd':'python check.py','citations':['README.md:1']}]}
+        with patch.object(a,'ask',side_effect=[(invalid,{}),(valid,{'cached':False})]) as ask:
+            steps,_,_=a.plan({'README.md':'python check.py'},'test-model')
+        self.assertEqual(steps[0]['cmd'],'python check.py')
+        self.assertEqual(ask.call_count,2)
+        self.assertIn('Previous response was rejected',ask.call_args.args[1])
+
+    def test_invalid_initial_plan_returns_report_without_execution(self):
+        options=SimpleNamespace(backend='docker',labeller='test-model',net=False)
+        with patch.object(a,'plan',side_effect=ValueError('bad citation')),patch.object(a.gm,'run') as execute:
+            report=a.run(a.gm.ROOT/'fixtures'/'haunted_env',options)
+        execute.assert_not_called()
+        self.assertEqual(report['status'],'inconclusive')
+        self.assertEqual(report['original']['status'],'invalid_plan')
+        self.assertNotIn('diff',report)
+        with tempfile.TemporaryDirectory() as folder:
+            a.gm.save_report(report,Path(folder))
+            self.assertTrue((Path(folder)/'replay.html').exists())
+
+    def test_blocked_runner_does_not_request_a_documentation_repair(self):
+        options=SimpleNamespace(backend='docker',labeller='test-model',net=False)
+        failure={'ok':False,'status':'environment_blocked','events':[], 'reason':'pytest unavailable'}
+        with patch.object(a,'plan',return_value=([],{}, {'cached':False})),patch.object(a.gm,'run',return_value=failure),patch.object(a,'propose') as propose:
+            report=a.run(a.gm.ROOT/'fixtures'/'haunted_env',options)
+        propose.assert_not_called()
+        self.assertEqual(report['status'],'inconclusive')
+
+    def test_invalid_verification_plan_cannot_escape_or_publish_patch(self):
+        options=SimpleNamespace(backend='docker',labeller='test-model',net=False)
+        failure={'ok':False,'status':'failed','events':[{'cmd':'python app.py test','exit_code':1,'output':'missing config'}]}
+        diagnosis={'category':'documentation_gap','edits':[]}
+        with patch.object(a,'plan',side_effect=[([],{}, {'cached':False}),ValueError('bad verification citation')]),patch.object(a.gm,'run',return_value=failure),patch.object(a,'propose',return_value=({'README.md':'changed'},diagnosis,{})):
+            report=a.run(a.gm.ROOT/'fixtures'/'haunted_env',options)
+        self.assertEqual(report['status'],'inconclusive')
+        self.assertFalse(report['assistant']['proposal_verified'])
+        self.assertNotIn('diff',report)
+        self.assertIn('bad verification citation',report['assistant']['validation_error'])
+
+    def test_guessed_install_is_not_supported_by_an_unrelated_valid_citation(self):
+        answer={'steps':[{'cmd':'pip install click','citations':['README.md:1']}]}
+        with patch.object(a,'ask',return_value=(answer,{})),self.assertRaisesRegex(ValueError,'Installation command is not present'):
+            a.plan({'README.md':'import click'},'test-model')
 
     def test_citation_ranges(self):
         a.citations(['README.md:1-2'],{'README.md':'one\ntwo'})

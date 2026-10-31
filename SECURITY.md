@@ -14,11 +14,11 @@ GhostMaintainer executes repository-supplied and model-proposed setup commands. 
 
 ## Limits and sensitive data
 
-Repository files may already contain secrets. Inspect before cloning/execution; .env is excluded from runtime copies, but this is not comprehensive secret scanning. Selected source/configuration and logs are sent to the **local Ollama endpoint**, not a hosted API. Their contents are untrusted input and can contain prompt injection. Model responses can contain false diagnoses or dangerous instructions despite checks.
+Repository files may already contain secrets. Inspect before cloning/execution; .env is excluded from runtime copies, but this is not comprehensive secret scanning. By default, selected source/configuration and logs go to the **local Ollama endpoint**. An operator may configure an HTTPS Ollama endpoint with `GHOST_OLLAMA_URL`; the app does not contact it for readiness or send repository data until the user checks the explicit remote-inference consent box. Remote calls receive selected onboarding docs, configuration excerpts, and trimmed failure logs, not the full checkout. Common secret-like strings in logs are redacted, but redaction is incomplete and cannot guarantee secrets are removed. Model input is untrusted and may contain prompt injection. Model responses can contain false diagnoses or dangerous instructions despite checks.
 
 With network enabled, container commands may contact external services. No host environment secrets are intentionally passed, but malicious inputs and Docker vulnerabilities remain concerns. Model citations and high confidence are not security evidence. Logs/test markers can be forged by malicious code; a passing test is not a security certification.
 
-The app has no user accounts, tenant isolation, production-grade scheduler, internet-facing authentication, or hardened cloud executor. Do not expose port 8765 publicly or place it behind a public tunnel as a production service.
+The app has no user accounts, tenant isolation, production-grade scheduler, internet-facing authentication, or hardened cloud executor. Optional remote inference uses a configured server and bearer key, not a hosted executor. Repository cloning and Docker execution remain on the local PC. Do not expose port 8765 publicly or place it behind a public tunnel as a production service.
 
 Runtime clones/reports and response caches persist locally. Inspect and remove them when no longer needed, especially before sharing a computer or archiving the source folder. They are Git-ignored and excluded from the initial repository upload.
 

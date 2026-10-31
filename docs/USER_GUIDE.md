@@ -2,7 +2,7 @@
 
 ## Requirements and startup
 
-Use a **source checkout** with Python 3.11+, Git, and a running Docker engine capable of Linux containers. AI assistant mode also requires Ollama and the selected model installed locally. No paid API or OpenAI API key is required. Python's standard library supplies the application runtime; Docker, Git, Ollama, and model weights are separate installations.
+Use a **source checkout** with Python 3.11+, Git, and a running Docker engine capable of Linux containers. Local AI mode also requires Ollama and the selected model installed. No paid API key is needed for local inference. Python's standard library supplies the application runtime; Docker, Git, Ollama, and model weights are separate installations.
 
 ```sh
 git clone https://github.com/raghavg1024-stack/GhostMaintaine.git
@@ -12,13 +12,15 @@ ollama pull qwen3:4b-instruct
 python app.py
 ```
 
+For the low-memory profile, install `qwen3:1.7b` instead. The rules-only profile does not need Ollama. The model files listed by Ollama are about 1.4 GB for Qwen3 1.7B and 2.5 GB for Qwen3 4B; Docker and model runtime need additional memory. These figures are file sizes, not minimum PC requirements.
+
 If that exact model tag is unavailable from your registry, install an available Ollama instruction model and enter its exact installed name under Check settings. The tested local tag is `qwen3:4b-instruct`; weights are not bundled. Run `ollama list` to inspect installed names and check your model's license separately.
 
 On Windows, `./start.ps1` is a convenience launcher that locates Python and Docker. Open **http://127.0.0.1:8765**. Stop the server with Ctrl+C. For another port, set `GHOST_PORT` before starting; the default browser link remains 8765 in the launcher text.
 
 ## Check a repository
 
-1. Choose **AI maintainer assistant**, the default mode.
+1. Choose **AI maintainer assistant**, the default mode. In **AI resource mode**, select low memory or balanced. Choose rules-only to run without an LLM.
 2. Paste a public root GitHub repository URL, for example `https://github.com/owner/repository`.
 3. Expand **Check settings**. Select your installed model, supply the intended test command if necessary, and enable network only when container dependency downloads are needed.
 4. Click **Ask GhostMaintainer**. Wait for cloning, reasoning, and Docker execution to complete.
@@ -46,7 +48,8 @@ The browser's custom test-command field supplies a command only, not a custom ma
 
 | Mode | What it does | Dependencies |
 |---|---|---|
-| AI maintainer assistant | Interprets onboarding prose/inline commands, reasons about failures, proposes docs edits, and independently interprets patched docs before Docker verification | Ollama/model, Git, Docker |
+| AI maintainer assistant | Interprets onboarding prose/inline commands, reasons about failures, proposes docs edits, and independently interprets patched docs before Docker verification | Selected Ollama model, Git, Docker |
+| Rules-only setup check | Deterministic documented-command check without an LLM; cannot interpret free text | Git, Docker |
 | Verify & heal the README | Legacy bounded config-command search; rules mode by default | Git, Docker |
 | Generate and verify setup artifacts | Produces setup.sh, devcontainer.json, and agent instructions after a passing run; separately executes setup.sh | Git, Docker |
 | Audit environment variables & versions | Advisory static Python/Node checks; no project commands execute | Git; UI readiness still expects Docker installed |
@@ -54,7 +57,21 @@ The browser's custom test-command field supplies a command only, not a custom ma
 | Benchmark local models | Compares models on the fixed v0 dataset, not the repository URL field | Git, Docker, selected Ollama models |
 | Scan a repository list | Up to 20 public URLs; license/setup prefilters, total deadlines, anonymous local aggregates | Git, Docker; optional network |
 
-The model field is optional outside assistant mode. Blank assistant mode uses `qwen3:4b-instruct`; blank legacy mode uses rules. The benchmark has its own comma-separated model list. Matrix values look like `py3.9,py3.11,py3.12`; pre-pull the corresponding `python:VERSION-slim` images.
+The model field is optional outside assistant mode. A blank model uses `qwen3:1.7b` in low-memory mode and `qwen3:4b-instruct` in balanced mode. Rules-only mode uses no model. The benchmark has its own comma-separated model list. Matrix values look like `py3.9,py3.11,py3.12`; pre-pull the corresponding `python:VERSION-slim` images.
+
+## Context and hardware
+
+GhostMaintainer does not send the whole repository to the model. It selects onboarding documents and a bounded set of configuration or source files. Low memory sends at most 6,000 selected characters with a 4,096-token model context; balanced sends at most 16,000 characters with an 8,192-token context. Oversized files are cut to the selected budget, and the saved report records which documents were included. A smaller model can be slower or less accurate, especially on CPU; no minimum-PC performance claim is made.
+
+The clean Docker verification still runs on this PC in every profile. Rules-only mode avoids model memory but still needs a working Docker engine.
+
+## Optional remote Ollama
+
+Local inference is the default. An administrator can point `GHOST_OLLAMA_URL` at an HTTPS Ollama server and optionally set `GHOST_OLLAMA_API_KEY`. On startup, the app shows a consent checkbox; before it is enabled, the server is not contacted for model readiness and no repository data is sent. After consent, the selected setup documents, configuration excerpts, and trimmed failure logs are sent to that endpoint. The full checkout is not sent. Common token/password patterns in logs are redacted, but redaction cannot guarantee every secret is removed. The repository clone and Docker tests stay on this PC.
+
+## Why use it alongside GitHub Issues?
+
+Issues list problems contributors have already noticed and reported. GhostMaintainer checks a different question: can a new contributor follow the documented setup before they hit a failure? It records the failed command, proposes a source-cited documentation change, and offers that change only after a fresh verification run. It is not a summary of the issue tracker or a general code debugger.
 
 ## Read the result
 
@@ -87,6 +104,7 @@ Only one web job runs at a time. Job status is in memory; restarting loses the p
 | Network install failure | Inspect logs; explicitly enable network only for an inspected repository |
 | Zero tests | Correct the verification command; do not substitute a trivial success marker |
 | AI citation/patch rejected | Read the validation explanation; no verified fix is available. Try rules mode or review the documents manually |
-| Slow AI | Context/model size affects GPU/CPU placement. Current assistant uses an 8K context and bounded input; latency is machine-dependent |
+| Slow AI | Choose low-memory mode or rules-only. Smaller context reduces prompt work but does not guarantee fast CPU inference; the Docker check still runs locally |
+| Remote model is not ready | Enable the explicit remote consent box, verify `GHOST_OLLAMA_URL` uses HTTPS, and confirm the model is installed on that server |
 
 Run only inspected repositories. This local prototype is not safe public multi-tenant hosting; see [security boundaries](../SECURITY.md).

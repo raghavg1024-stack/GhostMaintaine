@@ -58,7 +58,8 @@ def label(text, model, independent=False):
                'prompt': prompt + json.dumps({'readme': text, 'candidates': candidates})}
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     cache = ROOT / '.cache' / f'{digest}.json'
-    cached = cache.exists()
+    from assistant import CACHE_DISABLED
+    cached = cache.exists() and os.environ.get('GHOST_NO_CACHE')!='1' and not CACHE_DISABLED.get()
     if cached:
         response = json.loads(read(cache))
     else:
@@ -135,12 +136,17 @@ def copy_repo(repo, destination):
     shutil.copytree(repo, destination, ignore=shutil.ignore_patterns(*EXCLUDE))
 
 
-def run(repo, steps, goal, backend='docker', network=False, text=None, image='python:3.12-slim'):
+def run(repo, steps, goal, backend='docker', network=False, text=None, image='python:3.12-slim', preparation=None):
     """One clean environment per run, one persistent shell within that run."""
     if backend == 'fixture':
         check_fixture(repo)
-    if backend == 'docker' and not shutil.which('docker'):
+    from runner_setup import find_docker
+    if backend == 'docker' and not find_docker():
         raise RuntimeError('Docker is required for repository execution; no host fallback is used')
+    preparation = preparation or []
+    if preparation and (backend != 'docker' or not network):
+        raise ValueError('Dependency preparation requires Docker and explicit network permission')
+    steps = preparation + list(steps)
     commands = [s['cmd'] for s in steps] + [goal['cmd']]
     if any('<' in cmd and '>' in cmd for cmd in commands):
         return {'ok': False, 'status': 'needs_input', 'events': [], 'reason': 'Unresolved command placeholder'}
@@ -188,7 +194,7 @@ def run(repo, steps, goal, backend='docker', network=False, text=None, image='py
             (temp / 'run.sh').write_text('\n'.join(script)+'\n', encoding='utf-8', newline='\n')
             (temp / 'run.sh').chmod(0o644)
             name = 'ghost-' + os.urandom(6).hex()
-            command = ['docker', 'run', '--rm', '--name', name, '--cap-drop=ALL',
+            command = [find_docker(), 'run', '--rm', '--name', name, '--cap-drop=ALL',
                        '--security-opt=no-new-privileges', '--memory=512m', '--cpus=1',
                        '--pids-limit=100', '--network=' + ('bridge' if network else 'none'),
                        '--env', 'HOME=/workspace', '--env', 'PYTHONUSERBASE=/workspace/.local',
@@ -201,7 +207,7 @@ def run(repo, steps, goal, backend='docker', network=False, text=None, image='py
             try:
                 result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=90, stdin=subprocess.DEVNULL)
             except subprocess.TimeoutExpired:
-                subprocess.run(['docker', 'rm', '-f', name], capture_output=True, timeout=15)
+                subprocess.run([find_docker(), 'rm', '-f', name], capture_output=True, timeout=15)
                 return {'ok': False, 'status': 'timeout', 'events': [], 'reason': 'Container exceeded 90 seconds'}
             output = result.stdout + result.stderr
             for index, cmd in enumerate(commands):
@@ -210,11 +216,26 @@ def run(repo, steps, goal, backend='docker', network=False, text=None, image='py
                     events.append({'cmd': cmd, 'exit_code': int(match[2]), 'output': match[1][-6000:], 'goal': index == len(steps), 'duration_s': round(float(match[3]), 3)})
             if not events:
                 return {'ok': False, 'status': 'infrastructure_error', 'events': [], 'reason': output[-3000:]}
+        for index,event in enumerate(events):
+            if index < len(preparation):
+                event.update(stage='preparation',source=preparation[index]['source'])
         final = events[-1] if events else {}
         goal_output = final.get('output', '')
         nonempty = (goal.get('marker') in goal_output if goal.get('marker') else
                     bool(re.search(r'(?:\b[1-9]\d* passed\b|Ran [1-9]\d* tests?\b)', goal_output)))
         success = final.get('goal') and final.get('exit_code') == 0 and nonempty
+        if not success and final.get('stage')=='preparation':
+            return {'ok':False,'status':'environment_blocked','events':events,'non_vacuous':False,
+                    'reason':'Project-declared dependency preparation failed. Review the installation log and required build tools; no README defect is established.'}
+        if (not success and not network and re.search(
+                r'Temporary failure in name resolution|Network is unreachable|Failed to establish a new connection', goal_output, re.I)):
+            return {'ok':False,'status':'environment_blocked','events':events,'non_vacuous':False,
+                    'reason':'Dependency access failed while container networking is disabled. This does not establish that the dependency is unavailable or that repository documentation is defective.'}
+        if (not success and final.get('goal') and final.get('exit_code') and
+                re.search(r'\bpython(?:3(?:\.\d+)?)?\s+-m\s+pytest\b', goal['cmd']) and
+                re.search(r': No module named [\'"]?pytest[\'"]?\s*$', goal_output)):
+            return {'ok': False, 'status': 'environment_blocked', 'events': events,
+                    'non_vacuous': False, 'reason': 'The selected container lacks the pytest test runner. Use an image with the project test dependencies installed or follow its documented dependency installation steps; this is not proof of a repository defect.'}
         if not success and final.get('exit_code') == 127:
             return {'ok': False, 'status': 'environment_blocked', 'events': events,
                     'non_vacuous': False, 'reason': 'Required executable is unavailable in the selected container image; do not infer a documentation defect'}
@@ -231,7 +252,15 @@ def patch_text(original, command, before=None):
 
 
 def drill(repo, options, override=None):
+    from assistant import CACHE_DISABLED
+    CACHE_DISABLED.set(getattr(options,'no_cache',False))
     started = time.perf_counter()
+    from runner_setup import dependency_plan
+    preparation=dependency_plan(repo) if getattr(options,'prepare',False) else []
+    if getattr(options,'prepare',False) and not options.net:
+        raise ValueError('Dependency preparation requires explicit network permission')
+    def sandbox(*args,**kwargs):
+        return run(*args,**kwargs,preparation=preparation)
     if options.backend == 'fixture':
         check_fixture(repo)
     goal = json.loads(read(repo / 'ghostmaintainer.json'))
@@ -240,9 +269,9 @@ def drill(repo, options, override=None):
     original = override if override is not None else read(repo / 'README.md')
     steps, metadata = label(original, options.labeller)
     image = getattr(options, 'image', 'python:3.12-slim')
-    initial = run(repo, steps, goal, options.backend, options.net, original, image)
+    initial = sandbox(repo, steps, goal, options.backend, options.net, original, image)
     report = {'repo': repo.name, 'backend': options.backend, 'model': metadata,
-              'goal': goal, 'original': initial, 'patches': [], 'status': 'healthy' if initial['ok'] else 'needs_human',
+              'preparation':preparation,'goal': goal, 'original': initial, 'patches': [], 'status': 'healthy' if initial['ok'] else 'needs_human',
               'baseline': baseline(repo), 'label_disagreement': False, 'image': image}
     try:
         from features import drift
@@ -252,7 +281,7 @@ def drill(repo, options, override=None):
     if initial['ok']:
         report['duration_s'] = round(time.perf_counter()-started, 3)
         return report
-    control = run(repo, steps, goal, options.backend, options.net, original, image)
+    control = sandbox(repo, steps, goal, options.backend, options.net, original, image)
     report['negative_control'] = control
     fingerprint = lambda r: [(e['cmd'], e['exit_code']) for e in r['events']]
     if initial['status'] != 'failed' or fingerprint(initial) != fingerprint(control):
@@ -275,7 +304,7 @@ def drill(repo, options, override=None):
             verification_steps, verify_meta = label(proposed, options.labeller, independent=True)
             normal_steps, _ = label(proposed, options.labeller)
             disagreement = verification_steps != normal_steps
-            result = run(repo, verification_steps, goal, options.backend, options.net, proposed, image)
+            result = sandbox(repo, verification_steps, goal, options.backend, options.net, proposed, image)
             progress = sum(e['exit_code'] == 0 and not e['goal'] for e in result['events'])
             trials.append({'candidate': candidate, 'status': result['status'], 'passed_setup_steps': progress,
                            'sandbox_time_s': round(sum(e.get('duration_s',0) for e in result['events']),3)})
@@ -306,8 +335,166 @@ def drill(repo, options, override=None):
     return report
 
 
-def save_report(report, destination):
+def project_context(repo_path):
+    """Read only small, non-secret project metadata needed for a useful result summary."""
+    if not repo_path:
+        return {}
+    repo_path = Path(repo_path)
+    context = {}
+    manifest = repo_path / 'package.json'
+    if manifest.is_file():
+        try:
+            package = json.loads(read(manifest))
+            context['manifest'] = 'package.json'
+            context['node_version'] = package.get('engines', {}).get('node')
+            context['test_command'] = 'npm test' if package.get('scripts', {}).get('test') else None
+        except (ValueError, OSError, AttributeError):
+            pass
+    config = repo_path / 'ghostmaintainer.json'
+    if config.is_file():
+        try:
+            context['configured_check'] = json.loads(read(config)).get('cmd')
+        except (ValueError, OSError, AttributeError):
+            pass
+    readme = repo_path / 'README.md'
+    if readme.is_file():
+        try:
+            text = read(readme)
+            test_heading = re.search(r'(?im)^#{1,3}[^\n]*(?:test|verification)[^\n]*$', text)
+            if test_heading:
+                next_heading = re.search(r'(?m)^#{1,3} ', text[test_heading.end():])
+                test_section = text[test_heading.end():test_heading.end() + next_heading.start()] if next_heading else text[test_heading.end():]
+                context['tests_mention_ffmpeg'] = bool(re.search(r'ffmpeg|ffprobe', test_section, re.I))
+        except (ValueError, OSError):
+            pass
+    return context
+
+
+def report_guidance(report):
+    """Return a short, evidence-led explanation and next steps for the report front page."""
+    original = report.get('original', {})
+    failed = next((event for event in original.get('events', []) if event.get('exit_code') != 0), {})
+    project = report.get('project_context', {})
+    goal = report.get('goal', {}).get('cmd', '')
+    image = report.get('image') or report.get('original', {}).get('image') or 'the selected container'
+    command = failed.get('cmd', '')
+    output = failed.get('output', '')
+    if report.get('status') == 'healthy':
+        return ('Setup check passed', 'The documented setup completed and the fixed check passed in a fresh container.',
+                ['Review the detailed evidence below. Passing verifies this check in this environment; it does not prove every feature works.'])
+    if report.get('status') == 'repaired':
+        return ('A documentation repair passed verification', 'A fresh run of the repaired instructions passed the same fixed check.',
+                ['Review the exact README change and its source before applying it.', 'Treat the result as proof for this check and environment only.'])
+    if report.get('status') == 'inconclusive' and 'git: not found' in output and command.lstrip().startswith('git clone'):
+        actions = [
+            'Leave EduMind’s README unchanged. GhostMaintainer already downloaded the repository before starting its temporary test computer, so running `git clone` again inside it is unnecessary.',
+            'In GhostMaintainer’s setup commands, skip `git clone https://github.com/raghavg1024-stack/edumind-ai.git` and the following `cd edumind-ai`. Keep `npm ci` as the dependency installation step.',
+        ]
+        if project.get('test_command') and project.get('configured_check') != project.get('test_command'):
+            actions.append(f'In Check settings, set the required test to `{project["test_command"]}`. This run expected `{project.get("configured_check") or goal}`, but `package.json` declares `{project["test_command"]}`.')
+        if project.get('node_version'):
+            actions.append(f'Configure the test computer to use Node.js 24 and npm (the repository requires `{project["node_version"]}`). The app currently defaults to `{image}`; its backend image can be changed with `GHOST_IMAGE`. Allow network for `npm ci` only if you trust the repository.')
+            actions.append('Check the verifier before rerunning: it currently accepts `N passed` or Python unittest’s `Ran N tests` output. Confirm it can recognize the output produced by this project’s `npm test` script.')
+        else:
+            actions.append(f'Use a container that includes Git and the project’s documented runtime. This run used `{image}` and stopped before the project check.')
+        actions.append('Rerun after those changes. Call it successful only if `npm test` passes in a fresh Node.js test computer. Until then, this run remains inconclusive.')
+        return ('GhostMaintainer stopped before testing the project',
+                'GhostMaintainer had already downloaded the repository, then tried to run its README’s `git clone` command again inside a clean Docker test computer. Git is not installed there, so the run stopped before project setup or tests. This does not show that EduMind is broken.', actions)
+    if original.get('status') == 'environment_blocked' or report.get('status') == 'inconclusive':
+        return ('The test environment blocked the check', original.get('reason') or report.get('reason') or 'The run stopped before a reliable project result was available.',
+                ['Do not treat this as a repository failure or apply a README patch yet.', f'Provide the missing tool or runtime in the test container, then rerun the unchanged check: `{goal}`.', 'Call the result verified only after the check completes in a fresh container.'])
+    if report.get('status') == 'needs_human':
+        return ('The check ran, but no fix was verified', report.get('reason') or 'The project did not pass its fixed check and the available evidence was not enough to safely repair the README.',
+                ['Keep the README unchanged until the failure is understood.', f'Confirm that `{goal}` is the intended contributor check.', 'Review the failed command and questions in the technical details, then rerun after the maintainer supplies the missing information.'])
+    return ('The result needs review', report.get('reason') or 'The report does not contain enough evidence for a clear pass or a verified repair.',
+            ['Open the technical evidence and inspect the first failed command.', 'Do not describe the repository as fixed unless a fresh verification run passed.'])
+
+
+def readable_report_html(report):
+    """A short, plain-language report with the implementation evidence tucked away."""
+    esc = lambda value: html.escape(str(value or ''))
+    def inline(value):
+        parts = re.split(r'(`[^`]+`)', str(value or ''))
+        return ''.join('<code>'+esc(part[1:-1])+'</code>' if part.startswith('`') and part.endswith('`') else esc(part) for part in parts)
+    title, explanation, steps = report_guidance(report)
+    project = report.get('project_context', {})
+    original = report.get('original', {})
+    events = original.get('events', [])
+    failed = next((event for event in events if event.get('exit_code') != 0), {})
+    image = report.get('image') or 'not recorded'
+    goal = report.get('goal', {}).get('cmd', 'not recorded')
+    status = report.get('status', 'unknown').replace('_', ' ').upper()
+    outcome = 'NOT TESTED' if report.get('status') == 'inconclusive' and not original.get('ok') else status
+    model = report.get('model', {}).get('labeller', 'not recorded')
+    context_record = report.get('context', {})
+    context_files = context_record.get('documents_sent', [])
+    context_note = ''
+    if context_record:
+        files = ', '.join('<code>'+esc(name)+'</code>' for name in context_files) or 'none recorded'
+        location = 'the configured remote server' if context_record.get('inference_location') == 'remote' else 'this PC'
+        failure_note = ' · includes trimmed failure output' if context_record.get('failure_logs_sent') else ''
+        context_note = '<p class="hint">Model context: '+esc(context_record.get('resource_profile','standard'))+' · '+esc(context_record.get('context_tokens','?'))+' tokens · inference on '+location+' · selected files: '+files+failure_note+'</p>'
+        context_summary = '<p class="meta">AI inference: '+esc(context_record.get('resource_profile','standard'))+' profile · '+esc(context_record.get('context_tokens','?'))+' context tokens · '+location+'</p>'
+    else:
+        context_summary = ''
+    calls = report.get('assistant', {}).get('calls', [])
+    event_rows = ''.join('<li><strong>Attempted:</strong> '+inline(event.get('cmd'))+' · '+('passed' if event.get('exit_code') == 0 else 'stopped with exit '+esc(event.get('exit_code')))+'<pre>'+esc(event.get('output',''))+'</pre></li>' for event in events)
+    check_note = ('The required check ran, but the environment blocked a valid result.' if failed.get('goal') else 'The required check was not reached.')
+    timeline = '<div class="timeline"><div class="done"><span>1</span><strong>Repository ready</strong><small>The app supplied a working copy for this run.</small></div><div class="blocked"><span>2</span><strong>Run stopped here</strong><small>'+inline(failed.get('cmd','No command recorded'))+'</small></div><div class="pending"><span>3</span><strong>'+esc(check_note)+'</strong><small>No passing result was recorded.</small></div></div>' if report.get('status') == 'inconclusive' else ''
+    model_text = '<p>Model: '+esc(model)+'. ' + ('A new response was generated.' if calls and not any(call.get('cached') for call in calls) else 'Some model responses may have been cached.')+'</p>' if report.get('assistant') else ''
+    revision = '<p class="meta">Commit checked: <code>'+esc(report['revision'])+'</code></p>' if report.get('revision') else ''
+    test_attempts = sum(1 for event in events if event.get('goal'))
+    fix_label = 'Yes' if report.get('diff') else 'No'
+    judge_quote = '“This run stopped before testing the repository. It found a problem in GhostMaintainer’s test setup, not proof that the repository is broken.”' if report.get('status') == 'inconclusive' else 'Read the result and limitation above; only claim success if the fixed check passed.'
+    step_items = ''.join('<li>'+inline(step)+'</li>' for step in steps)
+    steps_panel = '<section class="card final"><div class="eyebrow">The fix · in order</div><h2>What our team needs to do next</h2><p>These are recommendations, not completed or verified changes.</p><ol class="steps">'+step_items+'</ol></section>'
+    ai_panel = ''
+    assistant = report.get('assistant', {})
+    if assistant:
+        interpretation = assistant.get('interpretation', {})
+        suggested = ''.join('<li>'+inline(step.get('cmd',''))+' <span class="hint">'+esc(', '.join(step.get('citations',[])))+'</span></li>' for step in interpretation.get('steps',[]))
+        ai_panel = '<details class="advanced"><summary>Show AI-suggested setup steps</summary><p>'+esc(interpretation.get('summary',''))+'</p><ul>'+suggested+'</ul>'+model_text+'<p class="hint">AI suggestions can be wrong. A passing test is the evidence; this run did not reach one.</p></details>'
+    patch_link = ' · <a href="README.patch">README patch</a>' if report.get('diff') else ''
+    page = '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GhostMaintainer · Run report</title>
+<style>
+:root{color-scheme:dark;--bg:#07090d;--panel:#10141a;--panel2:#151b22;--line:#2a333d;--text:#f1f5f7;--muted:#a0abb5;--green:#55ed9a;--orange:#ffad5c;--red:#ff7972;--purple:#c7a5ff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -14%,#1a1528 0,transparent 44%),var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}main{width:min(100% - 32px,980px);margin:0 auto;padding:28px 0 56px}.topbar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding:0 0 18px;margin-bottom:36px}.brand{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:.02em}.ghost{color:var(--purple);width:24px;height:27px;filter:drop-shadow(0 0 10px #9c6eff66)}.badge{border:1px solid #9d6e32;color:#ffd08f;background:#33200d66;border-radius:99px;padding:5px 11px;font:700 12px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.06em}.eyebrow{color:var(--orange);font:700 12px/1.5 ui-monospace,Consolas,monospace;letter-spacing:.12em;text-transform:uppercase}.hero{margin-bottom:24px}.hero h1{font-size:clamp(32px,5.5vw,50px);line-height:1.1;letter-spacing:-.045em;margin:10px 0 12px;max-width:800px}.hero p{max-width:760px;color:#bac3ca;margin:0}.meta{font-size:13px;color:var(--muted);margin-top:18px}.meta code,code{font: .91em ui-monospace,Consolas,monospace;color:#ffd19a;background:#261d16;border:1px solid #4a3423;border-radius:5px;padding:2px 6px;overflow-wrap:anywhere}.card{background:linear-gradient(150deg,#12171d,#0d1116);border:1px solid var(--line);border-radius:16px;padding:clamp(20px,4vw,32px);margin:20px 0;box-shadow:0 14px 40px #0005}.result{border-top:3px solid var(--orange)}.final{border-top:3px solid var(--green)}.result h2{font-size:24px;margin:4px 0 8px}.result p{color:#c7d0d6;margin:8px 0}.numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 0}.metric{background:#0a0e12;border:1px solid #222b33;border-radius:10px;padding:13px 15px}.metric strong{display:block;font-size:24px;line-height:1.2}.metric small{color:var(--muted)}.timeline{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}.timeline>div{position:relative;min-height:120px;background:#0b0f13;border:1px solid var(--line);border-radius:12px;padding:15px}.timeline span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;font-weight:800;margin-bottom:9px}.timeline strong,.timeline small{display:block}.timeline small{color:var(--muted);margin-top:5px;overflow-wrap:anywhere}.done span{background:#10331f;color:var(--green)}.blocked{border-color:#67451f!important}.blocked span{background:#39230e;color:var(--orange)}.pending span{background:#252a30;color:#a9b1b8}.card h2{font-size:22px;margin:0 0 12px}.card h3{font-size:16px;margin:24px 0 8px}.card>p{color:#c5cdd3}.steps{counter-reset:action;list-style:none;padding:0;margin:18px 0 0}.steps li{counter-increment:action;position:relative;padding:0 0 22px 48px;margin:0;min-height:62px}.steps li:before{content:counter(action,decimal-leading-zero);position:absolute;left:0;top:1px;color:var(--green);font:700 13px ui-monospace,Consolas,monospace;border:1px solid #2b6146;background:#10261b;border-radius:8px;padding:5px 7px}.steps li:not(:last-child):after{content:"";position:absolute;left:17px;top:34px;bottom:0;border-left:1px solid #34413b}.local{background:linear-gradient(140deg,#121a1e,#111319);border-color:#28533e}.terminal{background:#080c0e;border:1px solid #253932;border-radius:10px;padding:12px 16px;margin:12px 0}.terminal li{padding:4px 0;color:#bcf3d0}.terminal code{color:var(--green);background:none;border:0;padding:0}.hint{font-size:13px;color:var(--muted)}.judge{border-left:3px solid var(--purple);padding:10px 14px;background:#171322;color:#e6dcff;border-radius:0 8px 8px 0;margin-top:20px}.advanced{border-top:1px solid var(--line);margin-top:24px;padding-top:10px}.advanced summary{cursor:pointer;padding:12px 0;color:#c1cbd2;font-weight:650}.advanced p,.advanced li{color:var(--muted)}.advanced pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#080b0f;border:1px solid #252e37;border-radius:8px;padding:14px;color:#c8d2d9;font:13px/1.6 ui-monospace,Consolas,monospace}a{color:#9fd7ff;text-decoration:none}a:hover{text-decoration:underline}.foot{padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:#83909a;margin-top:30px}@media(max-width:660px){main{width:min(100% - 24px,980px);padding-top:17px}.topbar{margin-bottom:26px}.numbers,.timeline{grid-template-columns:1fr}.timeline>div{min-height:unset}.badge{font-size:10px}.card{border-radius:12px}}
+</style></head><body><main>'''
+    page += '<div class="topbar"><div class="brand"><svg class="ghost" viewBox="0 0 28 32" aria-hidden="true"><path d="M5 27V13a9 9 0 0 1 18 0v14l-4-3-5 3-5-3-4 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><ellipse cx="11" cy="13" rx="1.3" ry="1.8" fill="currentColor"/><ellipse cx="17" cy="13" rx="1.3" ry="1.8" fill="currentColor"/></svg> GhostMaintainer</div><span class="badge">'+esc(outcome)+'</span></div>'
+    page += '<header class="hero"><div class="eyebrow">A clear result for maintainers</div><h1>'+esc(title)+'</h1><p>'+esc(explanation)+'</p><div class="meta">Repository: <strong>'+esc(report.get('repo'))+'</strong> · '+esc(report.get('duration_s'))+' seconds · '+esc(report.get('backend','unknown'))+'</div>'+revision+context_summary+'</header>'
+    page += timeline
+    page += '<section class="card result"><div class="eyebrow">What this tells us</div><h2>Run at a glance</h2><div class="numbers"><div class="metric"><strong>'+str(len(events))+'</strong><small>commands actually run</small></div><div class="metric"><strong>'+str(test_attempts)+'</strong><small>project test checks attempted</small></div><div class="metric"><strong>'+fix_label+'</strong><small>verified README fix</small></div></div><div class="judge"><strong>What to say in a demo:</strong> '+esc(judge_quote)+'</div></section>'
+    page += '<section class="card"><div class="eyebrow">More detail · open only if needed</div><h2>Evidence and model notes</h2><p>Required test: '+inline(goal)+'</p><p>Test computer: '+inline(image)+'</p>'+context_note+'<details class="advanced"><summary>Show the exact command and error</summary><ol>'+event_rows+'</ol></details>'+ai_panel+'<details class="advanced"><summary>Open raw files</summary><p><a href="evidence.md">Plain-English summary</a> · <a href="report.json">Full report JSON</a> · <a href="events.jsonl">Execution log</a>'+patch_link+'</p></details></section>'
+    page += steps_panel
+    page += '<footer class="foot">This is a saved run, not a live test. It records only commands that actually ran. A recommendation is not a verified fix.</footer></main></body></html>'
+    return page
+
+
+
+def readable_report_markdown(report):
+    title, explanation, steps = report_guidance(report)
+    event = next((item for item in report.get('original', {}).get('events', []) if item.get('exit_code') != 0), {})
+    lines = [
+        '# GhostMaintainer run summary', '', '## What happened', '', f'**{title}.** {explanation}', '',
+        '## What actually ran', '', f'- Repository: {report.get("repo")}', f'- Status: {report.get("status")}',
+        f'- Test container: `{report.get("image", "unknown")}`', f'- Required test: `{report.get("goal", {}).get("cmd", "unknown")}`',
+        f'- First failed command: `{event.get("cmd", "none")}`', f'- Error: `{event.get("output", "none").strip()}`',
+        f'- Duration: {report.get("duration_s", "unknown")} seconds',
+        '- Project tests attempted: '+str(sum(1 for item in report.get('original', {}).get('events', []) if item.get('goal'))),
+        '- README fix verified: '+('yes' if report.get('status') == 'repaired' and report.get('verification', {}).get('ok') else 'no'),
+        '', 'A saved run cannot prove every feature works. “Inconclusive” means the project check did not run to completion.'
+    ]
+    context_record=report.get('context',{})
+    if context_record:
+        lines += ['', '## Model and data used', '', f'- Resource mode: {context_record.get("resource_profile")}', f'- Model context: {context_record.get("context_tokens")} tokens', f'- Inference ran on: {context_record.get("inference_location")}', f'- Selected files: {", ".join(context_record.get("documents_sent", [])) or "none recorded"}', f'- Failure output sent: {"yes (trimmed)" if context_record.get("failure_logs_sent") else "no"}', f'- Endpoint: `{context_record.get("endpoint", "not recorded")}`']
+    lines += ['', '## Step-by-step fix', '', 'These are recommendations, not completed or verified fixes.', '']
+    lines += [f'{index}. {step}' for index, step in enumerate(steps, 1)]
+    return '\n'.join(lines)+'\n'
+
+
+def save_report(report, destination, repo_path=None):
     destination.mkdir(parents=True, exist_ok=True)
+    if repo_path:
+        report['project_context'] = project_context(repo_path)
     write_json(destination / 'report.json', report)
     if report.get('diff'):
         (destination / 'README.patch').write_text(report['diff'], encoding='utf-8')
@@ -316,69 +503,9 @@ def save_report(report, destination):
     for phase in ('original', 'negative_control', 'verification'):
         for event in report.get(phase, {}).get('events', []):
             events.append(json.dumps({'phase': phase, **event}))
-    (destination / 'events.jsonl').write_text('\n'.join(events)+'\n', encoding='utf-8')
-    escape = lambda value: html.escape(str(value))
-    sections = ''
-    for phase in ('original', 'negative_control', 'verification'):
-        result = report.get(phase)
-        if result:
-            sections += f'<h3>{phase.replace("_", " ").title()} · {escape(result["status"])}</h3>'
-            for event in result['events']:
-                sections += f'<details><summary>{escape(event["cmd"])} · exit {event["exit_code"]}</summary><pre>{escape(event["output"])}</pre></details>'
-    provenance = ''.join(f'<li><code>{escape(p["cmd"])}</code> ← {escape(p["source"])}</li>' for p in report['patches'])
-    repaired = report['status'] == 'repaired'
-    healthy = report['status'] == 'healthy'
-    title = 'README fixed. Setup now passes.' if repaired else ('Your setup already works.' if healthy else 'Setup could not be verified.')
-    failed = next((e for e in report['original']['events'] if e['exit_code'] != 0), {})
-    last_line = failed.get('output', '').strip().splitlines()[-1:] or [report['original'].get('reason', 'No failure was reported.')]
-    issue = last_line[0]
-    if 'missing config' in issue:
-        issue = 'The app needs a configuration file. The README skips the command that creates it.'
-    elif 'missing seed' in issue:
-        issue = 'The app needs initial data. The README skips the command that creates it.'
-    elif 'token' in issue.lower():
-        issue = 'A required token is missing. A person must supply it before setup can be verified.'
-    elif report['original']['status'] == 'environment_blocked':
-        issue = 'The test container is missing a required tool. This does not establish a README defect.'
-    changes = ''
-    if repaired:
-        for item in report['patches']:
-            changes += f'<div class="change"><strong>+ {escape(item["cmd"])}</strong><p>Found in {escape(item["source"])}. Added to the README before the failing step.</p></div>'
-    else:
-        changes = '<p>No README changes proposed.</p>'
-    verified = report.get('verification', report['original'])
-    final_output = next((e['output'].strip() for e in reversed(verified['events']) if e.get('goal') and e['exit_code'] == 0), '')
-    model = report['model']['labeller']
-    page = '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GhostMaintainer · Setup result</title>
-<style>*{box-sizing:border-box}body{background:#f5f7fa;color:#172238;font:17px/1.6 system-ui;margin:0}main{max-width:1020px;margin:auto;padding:40px 24px}header{margin-bottom:28px}.brand{font-weight:800;color:#285647;letter-spacing:.08em;font-size:14px}h1{font-size:clamp(30px,5vw,46px);line-height:1.15;letter-spacing:-.04em;margin:18px 0}h2{font-size:23px;margin:0 0 12px}h3{font-size:17px}p{margin:8px 0;color:#4b5870}.flow{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:28px 0}.card,section{background:white;border:1px solid #d8e0e9;border-radius:16px;padding:26px;margin-bottom:20px}.card{margin:0;border-top:5px solid #a6afbc}.red{border-top-color:#ce493e}.green{border-top-color:#198255}.label{font-size:13px;font-weight:800;letter-spacing:.08em}.state{font-size:29px;font-weight:800;margin:8px 0}.red .state{color:#b72e27}.green .state{color:#117445}.step{color:#53617a;font-size:13px;text-transform:uppercase;letter-spacing:.1em;font-weight:800;margin-bottom:10px}.change{background:#ecf8f0;border-left:4px solid #22814e;border-radius:6px;padding:16px;margin:14px 0}.change strong{font-family:ui-monospace,monospace;color:#11552d}.change p{font-size:14px}pre{background:#f1f4f8;color:#172238;border-radius:8px;padding:18px;white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.6 ui-monospace,monospace}summary{cursor:pointer;padding:12px 0;font-weight:650}details{border-top:1px solid #e1e6ed}a{color:#175fa6}footer{font-size:14px;color:#59677d;padding:10px 0 30px}.meta{font-size:14px}.success{color:#137346;font-weight:750}@media(max-width:650px){.flow{grid-template-columns:1fr}main{padding:24px 16px}.card,section{padding:20px}}</style></head><body><main>'''
-    page += f'<header><div class="brand">GHOSTMAINTAINER</div><h1>{title}</h1><p>We followed the README, checked what went wrong, and tested the result in a clean environment.</p><p class="meta">Repository: <strong>{escape(report["repo"])}</strong> · Recorded run · {report["duration_s"]} seconds</p></header>'
-    before_state = 'Passed' if report['original']['ok'] else 'Failed' if failed else 'Blocked'
-    after_state = 'Passed' if verified['ok'] else 'Not verified'
-    page += f'<div class="flow"><div class="card {"green" if report["original"]["ok"] else "red"}"><div class="label">BEFORE · ORIGINAL README</div><div class="state">{before_state}</div><p>{"The documented setup worked." if healthy else escape(issue)}</p></div><div class="card {"green" if verified["ok"] else ""}"><div class="label">AFTER · {"PATCHED README" if repaired else "RESULT"}</div><div class="state">{after_state}</div><p>{"A fresh run passed the same check." if repaired else "No repair was necessary." if healthy else "No verified fix is available. Maintainer input or environment setup is needed."}</p></div></div>'
-    page += f'<section><div class="step">1 · What went wrong</div><h2>{"No setup problem found" if healthy else "The original instructions did not complete"}</h2><p>{"The setup and declared check both passed." if healthy else escape(issue)}</p>'
-    if failed:
-        page += f'<p>Stopped at this command:</p><pre>{escape(failed["cmd"])}</pre>'
-    page += f'</section><section><div class="step">2 · What changed</div><h2>{"Missing instructions added" if repaired else "README left unchanged"}</h2>{changes}<p>Changes affect documentation only. Application code was not changed.</p></section>'
-    page += f'<section><div class="step">3 · Did it work?</div><h2>{"Yes — the verification check passed" if verified["ok"] else "Not yet — verification is blocked or failed"}</h2><p>The check below was fixed before repair and was not weakened to make the result pass.</p><pre>{escape(report["goal"]["cmd"])}</pre>'
-    if final_output:
-        page += f'<p class="success">Actual output from the check:</p><pre>{escape(final_output)}</pre>'
-    if repaired:
-        page += '<p>The original instructions failed again in a separate clean run. The patched instructions passed in another clean run.</p><p><a href="README.patch">Download the README patch</a> · <a href="README.patched.md">Read the updated README</a></p>'
-    page += '</section><section><details><summary>Technical evidence and full logs</summary>'
-    page += f'<p>Execution: {escape(report["backend"])} · Command selection: {escape(model)} · Cached selection: {report["model"]["cached"]}</p><p>Labeller disagreement: {report["label_disagreement"]}</p>' + sections
-    page += f'<h3>Exact documentation diff</h3><pre>{escape(report.get("diff", "No verified patch."))}</pre><h3>Command sources</h3><ul>{provenance or "<li>No repair proposed.</li>"}</ul><p><a href="report.json">Raw report data</a> · <a href="events.jsonl">Execution events</a></p></details></section>'
-    page += '<footer>This is a recorded result, not a live terminal. Synthetic demo repositories contain deliberately missing instructions. Passing verifies the declared check in this environment; it does not prove that every feature works.</footer></main></body></html>'
-    try:
-        from features import report_panels
-        panels = report_panels(report)
-        if report.get('assistant'):
-            lead, separator, panels = panels.partition('</section>')
-            page = page.replace('</header>', '</header>'+lead+separator, 1)
-        page = page.replace('</main>', panels + '</main>')
-    except (ValueError, OSError, KeyError, TypeError) as error:
-        page = page.replace('</main>', '<p>Optional feature panels unavailable: '+escape(error)+'</p></main>')
-    (destination / 'replay.html').write_text(page, encoding='utf-8')
-
+    (destination / 'events.jsonl').write_text('\n'.join(events) + '\n', encoding='utf-8')
+    (destination / 'replay.html').write_text(readable_report_html(report), encoding='utf-8')
+    (destination / 'evidence.md').write_text(readable_report_markdown(report), encoding='utf-8')
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] in ('drift', 'ship', 'bench-models', 'scan', 'guard'):
@@ -388,19 +515,29 @@ def main():
     parser.add_argument('command', choices=['assist', 'drill', 'baseline', 'eval', 'bench', 'mutate'])
     parser.add_argument('repo', nargs='?', type=Path)
     parser.add_argument('--backend', choices=['docker', 'fixture'], default='docker')
-    parser.add_argument('--labeller', default='rules', help='rules or an installed Ollama model name')
+    parser.add_argument('--labeller', help='rules or an installed Ollama model name')
+    parser.add_argument('--profile', choices=['low','balanced'], default='balanced', help='AI context and memory profile')
+    parser.add_argument('--remote-ai', action='store_true', help='Allow selected setup files and failure logs to be sent to configured HTTPS Ollama')
+    parser.add_argument('--prepare', action='store_true', help='Install project-declared Python test dependencies inside each Docker sandbox; requires --net')
+    parser.add_argument('--no-cache', action='store_true', help='Bypass model response cache for a live AI demonstration')
     parser.add_argument('--net', action='store_true', help='Explicitly permit container network access')
     parser.add_argument('--image', default='python:3.12-slim')
     parser.add_argument('--matrix', help='Comma-separated Python environments, e.g. py3.9,py3.11,py3.12')
     parser.add_argument('--out', type=Path, default=ROOT / 'runs')
     args = parser.parse_args()
+    if args.no_cache:
+        os.environ['GHOST_NO_CACHE']='1'
     try:
         if args.command == 'assist':
             if args.repo is None:
                 raise ValueError('Repository folder required')
             from assistant import run as assist
+            from runner_setup import AI_PROFILES
+            args.labeller=args.labeller or AI_PROFILES[args.profile]['model']
+            args.resource_profile=args.profile
+            args.remote_consent=args.remote_ai
             report = assist(args.repo.resolve(), args)
-            save_report(report, args.out / args.repo.name)
+            save_report(report, args.out / args.repo.name, repo_path=args.repo.resolve())
             print(json.dumps({'status':report['status'],'report':str((args.out/args.repo.name/'replay.html').resolve())},indent=2))
             return 0 if report['status'] in ('healthy','repaired') else 2
         if args.matrix:
@@ -415,7 +552,7 @@ def main():
             results = []
             for repo in repos:
                 report = drill(repo.resolve(), args)
-                save_report(report, args.out / repo.name)
+                save_report(report, args.out / repo.name, repo_path=repo.resolve())
                 results.append({'repo': repo.name, 'status': report['status'], 'duration_s': report['duration_s'],
                                 'patch_count': len(report['patches']), 'labeller': args.labeller})
             write_json(args.out / 'evaluation.json', results)
@@ -440,7 +577,7 @@ def main():
                 lines = original.splitlines(True)
                 del lines[step['line']-1]
                 report = drill(repo, args, ''.join(lines))
-                save_report(report, args.out / f'mutation-{index+1}')
+                save_report(report, args.out / f'mutation-{index+1}', repo_path=repo)
                 mutations.append({'deleted': step['cmd'], 'in_config': step['cmd'] in known,
                                   'status': report['status'], 'recovered': report['status'] == 'repaired',
                                   'failure_induced': not report['original']['ok']})
@@ -453,9 +590,10 @@ def main():
             print(json.dumps(summary, indent=2))
         else:
             report = drill(args.repo.resolve(), args)
-            save_report(report, args.out / args.repo.name)
+            save_report(report, args.out / args.repo.name, repo_path=args.repo.resolve())
             print(json.dumps({'status': report['status'], 'report': str((args.out / args.repo.name / 'replay.html').resolve())}, indent=2))
             return 0 if report['status'] in ('healthy', 'repaired') else 2
+        args.labeller=args.labeller or 'rules'
     except (ValueError, OSError, KeyError, subprocess.SubprocessError) as error:
         print(f'ghostmaintainer: {error}', file=sys.stderr)
         return 1

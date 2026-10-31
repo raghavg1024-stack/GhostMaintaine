@@ -1,0 +1,17 @@
+import { build } from 'esbuild';
+import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+process.chdir(fileURLToPath(new URL('.', import.meta.url)));
+await mkdir('.build', {recursive:true});
+execFileSync(process.execPath, ['node_modules/@tailwindcss/cli/dist/index.mjs','-i','src/styles.css','-o','.build/style.css','--minify'], {stdio:'inherit'});
+const result = await build({entryPoints:['src/App.jsx'],bundle:true,minify:true,write:false,define:{'process.env.NODE_ENV':'"production"'},legalComments:'inline'});
+const font = (await readFile('node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2')).toString('base64');
+const boldFont = (await readFile('node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2')).toString('base64');
+const fontCss = `@font-face{font-family:Inter;font-weight:100 599;font-display:swap;src:url(data:font/woff2;base64,${font}) format('woff2')}@font-face{font-family:Inter;font-weight:600 900;font-display:swap;src:url(data:font/woff2;base64,${boldFont}) format('woff2')}`;
+const css=await readFile('.build/style.css','utf8');
+await writeFile('index.html', `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GhostMaintainer — Your local AI maintainer</title><style>${fontCss}${css}</style></head><body><div id="root"></div><noscript>Enable JavaScript to use the local GhostMaintainer assistant.</noscript><script>${result.outputFiles[0].text.replaceAll('</script','<\\/script')}</script></body></html>`);
+await mkdir('dist', {recursive:true});
+await writeFile('dist/index.html', await readFile('index.html'));
+await cp('public','dist',{recursive:true});
+console.log('Built self-contained React + Tailwind index.html with embedded Inter fonts.');

@@ -1,13 +1,22 @@
-# Proposed additions — not implemented
+# Roadmap
 
-Priority is based on failures observed during development. These are suggestions, not delivered features.
+## Implemented in the current branch
+
+- Low-memory and balanced model context profiles, plus a deterministic rules-only path.
+- Selected-file evidence packs instead of sending the whole repository to the model.
+- Optional remote Ollama inference with HTTPS validation and a per-run user consent gate.
+- Setup-first product flow: replay documented onboarding, keep the test target fixed, and offer a documentation repair only after fresh verification.
+
+These features still need broader real-PC and held-out repository evaluation. Profiles do not promise smooth inference on every computer, and the supported execution environment remains Python/Linux.
+
+## Next: improve usefulness and evidence
 
 ## Next: improve usefulness and evidence
 
 1. **Ask-and-answer maintainer conversation:** accept answers to specific questions, retain them as declared assumptions, and rerun without collecting secret values.
-2. **Environment profiles:** explicitly choose Python/uv/Poetry/Node images and prerequisites before testing. Record the profile so missing tools do not become false documentation blame.
-3. **Reliable repository evaluations:** curate licensed, commit-pinned held-out repos; measure healthy false positives, failure classification, repair correctness and patch quality. Current synthetic evidence is insufficient.
-4. **Better context and config parsing:** bounded source-tree inventory, relevant file retrieval, structured YAML/multiline commands, CONTRIBUTING links, monorepos, and src-layout handling.
+2. **Runtime profiles:** explicitly choose supported Python, uv, Poetry, and later Node images/prerequisites before testing. Record the profile so missing tools do not become false documentation blame.
+3. **Reliable repository evaluations:** curate licensed, commit-pinned held-out repos; measure healthy false positives, failure classification, repair correctness and patch quality. Current evidence is not enough for broad success claims.
+4. **Better context and config parsing:** select relevant sections within the current low/balanced budgets; add structured YAML/multiline commands, more CONTRIBUTING links, monorepos, and src-layout handling.
 5. **Patch review quality:** explain each change, avoid duplicate commands/prose, flag unsupported claims, preserve formatting and let users approve a diff before applying locally.
 
 ## Then: improve the local experience

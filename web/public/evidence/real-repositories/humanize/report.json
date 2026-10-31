@@ -1,0 +1,226 @@
+{
+  "repo": "https://github.com/python-humanize/humanize",
+  "backend": "docker",
+  "image": "python:3.12-slim",
+  "goal": {
+    "cmd": "python -m pytest -q"
+  },
+  "model": {
+    "labeller": "qwen3:4b-instruct",
+    "cached": false
+  },
+  "original": {
+    "ok": false,
+    "status": "invalid_plan",
+    "events": [],
+    "reason": "No commands executed: Installation command is not present in its cited documentation: python3 -m pip install tox"
+  },
+  "patches": [],
+  "baseline": [
+    {
+      "cmd": "sudo apt install gettext",
+      "source": ".github/workflows/test.yml:48"
+    },
+    {
+      "cmd": "scripts/generate-translation-binaries.sh",
+      "source": ".github/workflows/test.yml:60"
+    },
+    {
+      "cmd": "pip install -e \".[tests]\"",
+      "source": ".github/workflows/benchmark.yml:34"
+    },
+    {
+      "cmd": "pytest tests/test_benchmarks.py --codspeed",
+      "source": ".github/workflows/benchmark.yml:40"
+    },
+    {
+      "cmd": "uvx --with tox-uv tox -e docs",
+      "source": ".github/workflows/docs.yml:29"
+    },
+    {
+      "cmd": "uvx --with tox-uv tox -e mypy",
+      "source": ".github/workflows/lint.yml:34"
+    },
+    {
+      "cmd": "uvx gh-profiler@latest \"$LOGIN\" --concise > profiler.txt",
+      "source": ".github/workflows/profile-issue-authors.yml:32"
+    },
+    {
+      "cmd": "echo",
+      "source": ".github/workflows/profile-issue-authors.yml:58"
+    },
+    {
+      "cmd": "echo \"======================== Full profile =========================\"",
+      "source": ".github/workflows/profile-issue-authors.yml:34"
+    },
+    {
+      "cmd": "uvx gh-profiler@latest \"$LOGIN\"",
+      "source": ".github/workflows/profile-issue-authors.yml:36"
+    },
+    {
+      "cmd": "echo \"===============================================================\"",
+      "source": ".github/workflows/profile-issue-authors.yml:38"
+    },
+    {
+      "cmd": "{",
+      "source": ".github/workflows/profile-pr-authors.yml:35"
+    },
+    {
+      "cmd": "echo \"<!-- gh-profiler:profile-link run-id=$RUN_ID -->\"",
+      "source": ".github/workflows/profile-issue-authors.yml:50"
+    },
+    {
+      "cmd": "echo \"Profile summary:\"",
+      "source": ".github/workflows/profile-issue-authors.yml:51"
+    },
+    {
+      "cmd": "echo '```text'",
+      "source": ".github/workflows/profile-pr-authors.yml:36"
+    },
+    {
+      "cmd": "cat profiler.txt",
+      "source": ".github/workflows/profile-pr-authors.yml:37"
+    },
+    {
+      "cmd": "echo '```'",
+      "source": ".github/workflows/profile-pr-authors.yml:38"
+    },
+    {
+      "cmd": "echo \"<a href=\\\"$SERVER_URL/$REPOSITORY/actions/runs/$RUN_ID/job/$CHECK_RUN_ID\\\">Full profile</a>\"",
+      "source": ".github/workflows/profile-issue-authors.yml:57"
+    },
+    {
+      "cmd": "echo \"(This comment and the linked profile output will auto-delete when this issue is closed.)\"",
+      "source": ".github/workflows/profile-issue-authors.yml:59"
+    },
+    {
+      "cmd": "} > body.txt",
+      "source": ".github/workflows/profile-issue-authors.yml:60"
+    },
+    {
+      "cmd": "jq -Rs '{body: .}' body.txt > payload.json",
+      "source": ".github/workflows/profile-issue-authors.yml:62"
+    },
+    {
+      "cmd": "gh api \\",
+      "source": ".github/workflows/profile-issue-authors.yml:64"
+    },
+    {
+      "cmd": "\"repos/$REPOSITORY/issues/$NUMBER/comments\" \\",
+      "source": ".github/workflows/profile-issue-authors.yml:85"
+    },
+    {
+      "cmd": "--input payload.json",
+      "source": ".github/workflows/profile-issue-authors.yml:66"
+    },
+    {
+      "cmd": "gh api --paginate \\",
+      "source": ".github/workflows/profile-issue-authors.yml:84"
+    },
+    {
+      "cmd": "--jq '",
+      "source": ".github/workflows/profile-issue-authors.yml:86"
+    },
+    {
+      "cmd": ".[]",
+      "source": ".github/workflows/profile-issue-authors.yml:87"
+    },
+    {
+      "cmd": "| select(.user.login == \"github-actions[bot]\")",
+      "source": ".github/workflows/profile-issue-authors.yml:88"
+    },
+    {
+      "cmd": "| select(.body | startswith(\"<!-- gh-profiler:profile-link run-id=\"))",
+      "source": ".github/workflows/profile-issue-authors.yml:89"
+    },
+    {
+      "cmd": "| [.id, (.body | capture(\"gh-profiler:profile-link run-id=(?<id>[0-9]+)\").id)]",
+      "source": ".github/workflows/profile-issue-authors.yml:90"
+    },
+    {
+      "cmd": "| @tsv",
+      "source": ".github/workflows/profile-issue-authors.yml:91"
+    },
+    {
+      "cmd": "' |",
+      "source": ".github/workflows/profile-issue-authors.yml:92"
+    },
+    {
+      "cmd": "while IFS=$'\\t' read -r comment_id run_id; do",
+      "source": ".github/workflows/profile-issue-authors.yml:93"
+    },
+    {
+      "cmd": "echo \"Deleting logs from workflow run $run_id.\"",
+      "source": ".github/workflows/profile-issue-authors.yml:94"
+    },
+    {
+      "cmd": "gh api --method DELETE \\",
+      "source": ".github/workflows/profile-issue-authors.yml:99"
+    },
+    {
+      "cmd": "\"repos/$REPOSITORY/actions/runs/$run_id/logs\"",
+      "source": ".github/workflows/profile-issue-authors.yml:96"
+    },
+    {
+      "cmd": "echo \"Deleting profile comment $comment_id.\"",
+      "source": ".github/workflows/profile-issue-authors.yml:98"
+    },
+    {
+      "cmd": "\"repos/$REPOSITORY/issues/comments/$comment_id\"",
+      "source": ".github/workflows/profile-issue-authors.yml:100"
+    },
+    {
+      "cmd": "done",
+      "source": ".github/workflows/profile-issue-authors.yml:101"
+    },
+    {
+      "cmd": "uvx gh-profiler@latest \"$LOGIN\" > profiler.txt",
+      "source": ".github/workflows/profile-pr-authors.yml:33"
+    },
+    {
+      "cmd": "} >> \"$GITHUB_STEP_SUMMARY\"",
+      "source": ".github/workflows/profile-pr-authors.yml:39"
+    },
+    {
+      "cmd": "echo \"PYTHON_GIL=0\" >> \"$GITHUB_ENV\"",
+      "source": ".github/workflows/test.yml:43"
+    },
+    {
+      "cmd": "brew install gettext",
+      "source": ".github/workflows/test.yml:53"
+    },
+    {
+      "cmd": "uvx --python ${{ matrix.python-version }} --with tox-uv tox -e py",
+      "source": ".github/workflows/test.yml:64"
+    },
+    {
+      "cmd": "test \"$TEST_RESULT\" = \"success\"",
+      "source": ".github/workflows/test.yml:81"
+    }
+  ],
+  "label_disagreement": false,
+  "status": "inconclusive",
+  "reason": "The model could not produce a valid sourced onboarding plan.",
+  "assistant": {
+    "validation_error": "Installation command is not present in its cited documentation: python3 -m pip install tox",
+    "proposal_verified": false,
+    "calls": [],
+    "diagnosis": {
+      "category": "uncertain",
+      "confidence": "low",
+      "diagnosis": "AI plan rejected: Installation command is not present in its cited documentation: python3 -m pip install tox",
+      "questions": [
+        "Which documented contributor setup path should be used?"
+      ],
+      "evidence": [],
+      "edits": []
+    }
+  },
+  "duration_s": 139.613,
+  "revision": "6b817b963dbb091b9ad20a746cb6a26653a93b95",
+  "evaluation_case": {
+    "url": "https://github.com/python-humanize/humanize",
+    "blind": true,
+    "prior": "No repository-specific changes before first evaluation."
+  }
+}

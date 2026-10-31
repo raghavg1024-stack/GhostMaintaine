@@ -1,0 +1,118 @@
+{
+  "repo": "https://github.com/pallets/itsdangerous",
+  "backend": "docker",
+  "image": "python:3.12-slim",
+  "goal": {
+    "cmd": "python -m pytest -q"
+  },
+  "model": {
+    "labeller": "qwen3:4b-instruct",
+    "cached": false
+  },
+  "preparation": [
+    {
+      "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 'flit_core<4' freezegun pytest",
+      "source": "pyproject.toml:25, pyproject.toml:56",
+      "stage": "preparation"
+    },
+    {
+      "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 --no-build-isolation -e .",
+      "source": "pyproject.toml:1",
+      "stage": "preparation"
+    }
+  ],
+  "original": {
+    "ok": true,
+    "status": "passed",
+    "events": [
+      {
+        "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 'flit_core<4' freezegun pytest",
+        "exit_code": 0,
+        "output": "Collecting flit_core<4\n  Downloading flit_core-3.12.0-py3-none-any.whl.metadata (888 bytes)\nCollecting freezegun\n  Downloading freezegun-1.5.5-py3-none-any.whl.metadata (13 kB)\nCollecting pytest\n  Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)\nCollecting python-dateutil>=2.7 (from freezegun)\n  Downloading python_dateutil-3.0.0-py2.py3-none-any.whl.metadata (8.2 kB)\nCollecting iniconfig>=2 (from pytest)\n  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)\nCollecting packaging>=24 (from pytest)\n  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)\nCollecting pluggy<2,>=1.6 (from pytest)\n  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)\nCollecting pygments>=2.15 (from pytest)\n  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)\nCollecting six>=1.6 (from python-dateutil>=2.7->freezegun)\n  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)\nCollecting tzdata (from python-dateutil>=2.7->freezegun)\n  Downloading tzdata-2026.6-py2.py3-none-any.whl.metadata (1.4 kB)\nDownloading flit_core-3.12.0-py3-none-any.whl (45 kB)\nDownloading freezegun-1.5.5-py3-none-any.whl (19 kB)\nDownloading pytest-9.2.0-py3-none-any.whl (411 kB)\nDownloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)\nDownloading packaging-26.3-py3-none-any.whl (129 kB)\nDownloading pluggy-1.7.0-py3-none-any.whl (27 kB)\nDownloading pygments-2.21.0-py3-none-any.whl (1.3 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 1.3/1.3 MB 6.2 MB/s eta 0:00:00\nDownloading python_dateutil-3.0.0-py2.py3-none-any.whl (94 kB)\nDownloading six-1.17.0-py2.py3-none-any.whl (11 kB)\nDownloading tzdata-2026.6-py2.py3-none-any.whl (348 kB)\nInstalling collected packages: tzdata, six, pygments, pluggy, packaging, iniconfig, flit_core, python-dateutil, pytest, freezegun\n  WARNING: The script pygmentize is installed in '/workspace/.local/bin' which is not on PATH.\n  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.\n  WARNING: The scripts py.test and pytest are installed in '/workspace/.local/bin' which is not on PATH.\n  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.\nSuccessfully installed flit_core-3.12.0 freezegun-1.5.5 iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0 python-dateutil-3.0.0 six-1.17.0 tzdata-2026.6\n",
+        "goal": false,
+        "duration_s": 7.913,
+        "stage": "preparation",
+        "source": "pyproject.toml:25, pyproject.toml:56"
+      },
+      {
+        "cmd": "python -m pip install --user --disable-pip-version-check --no-input --timeout 15 --retries 0 --no-build-isolation -e .",
+        "exit_code": 0,
+        "output": "Obtaining file:///workspace\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nBuilding wheels for collected packages: itsdangerous\n  Building editable for itsdangerous (pyproject.toml): started\n  Building editable for itsdangerous (pyproject.toml): finished with status 'done'\n  Created wheel for itsdangerous: filename=itsdangerous-2.3.0.dev0-py3-none-any.whl size=3120 sha256=0af6ee17cdbbab289c05742d74b15f22df182de64c4fc390d2965ad893ef4ce7\n  Stored in directory: /tmp/pip-ephem-wheel-cache-gxi6tmm3/wheels/b0/41/ab/4e04a8678980f3355548f1261923479fbf2a713a7393a7dea8\nSuccessfully built itsdangerous\nInstalling collected packages: itsdangerous\nSuccessfully installed itsdangerous-2.3.0.dev0\n",
+        "goal": false,
+        "duration_s": 3.005,
+        "stage": "preparation",
+        "source": "pyproject.toml:1"
+      },
+      {
+        "cmd": "python -m pytest -q",
+        "exit_code": 0,
+        "output": "........................................................................ [ 24%]\n........................................................................ [ 48%]\n........................................................................ [ 72%]\n........................................................................ [ 96%]\n.........                                                                [100%]\n297 passed in 1.33s\n",
+        "goal": true,
+        "duration_s": 2.205
+      }
+    ],
+    "non_vacuous": true,
+    "reason": ""
+  },
+  "patches": [],
+  "baseline": [
+    {
+      "cmd": "uv run --locked --group pre-commit pre-commit run --show-diff-on-failure --color=always --all-files",
+      "source": ".github/workflows/pre-commit.yaml:23"
+    },
+    {
+      "cmd": "echo \"SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)\" >> $GITHUB_ENV",
+      "source": ".github/workflows/publish.yaml:17"
+    },
+    {
+      "cmd": "uv build",
+      "source": ".github/workflows/publish.yaml:18"
+    },
+    {
+      "cmd": "gh release create --draft --repo ${{ github.repository }}",
+      "source": ".github/workflows/publish.yaml:31"
+    },
+    {
+      "cmd": "${{ github.ref_name }} artifact/*",
+      "source": ".github/workflows/publish.yaml:32"
+    },
+    {
+      "cmd": "uv run --locked tox run -e ${{ matrix.tox || format('py{0}', matrix.python) }}",
+      "source": ".github/workflows/tests.yaml:32"
+    },
+    {
+      "cmd": "uv run --locked tox run -e typing",
+      "source": ".github/workflows/tests.yaml:49"
+    }
+  ],
+  "label_disagreement": false,
+  "status": "healthy",
+  "assistant": {
+    "interpretation": {
+      "summary": "The repository README.md documents a Python library for securely transmitting data between untrusted environments using cryptographic signing. It includes a simple example of generating and verifying tokens with a secret key. No setup, test, or configuration commands are explicitly documented in the provided text. There is no mention of prerequisites, test commands, or contributor-specific setup steps beyond the example code and contributing link.",
+      "questions": [
+        "What is the required Python version for using itsdangerous?",
+        "Are there any documented test commands or environment setup steps for running tests?",
+        "Is a specific Python package or dependency required to run the example code?",
+        "Are there any documented build or installation commands for the library?"
+      ],
+      "steps": []
+    },
+    "calls": [
+      {
+        "model": "qwen3:4b-instruct",
+        "cached": false,
+        "duration_s": 17.932,
+        "rejected_attempts": []
+      }
+    ],
+    "proposal_verified": false
+  },
+  "duration_s": 33.06,
+  "revision": "672971d66a2ef9f85151e53283113f33d642dabd",
+  "evaluation_case": {
+    "url": "https://github.com/pallets/itsdangerous",
+    "blind": false,
+    "prior": "Previously manually inspected for a coverage config issue; not a blind test."
+  }
+}
