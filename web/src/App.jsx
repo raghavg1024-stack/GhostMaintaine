@@ -4,10 +4,11 @@ function GhostIcon() {
   return <svg className="ghost" viewBox="0 0 28 32" fill="none" aria-hidden="true"><path d="M5 27V13a9 9 0 0 1 18 0v14l-4-3-5 3-5-3-4 3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><ellipse cx="11" cy="13" rx="1.3" ry="1.8" fill="currentColor"/><ellipse cx="17" cy="13" rx="1.3" ry="1.8" fill="currentColor"/></svg>;
 }
 function App() {
+  const hostedInterface = !['127.0.0.1', 'localhost'].includes(window.location.hostname);
   useEffect(() => {
     let token='', busy=false, ready=false, healthRequest=0;
     const $=id=>document.getElementById(id);
-    const localRunner=['127.0.0.1','localhost'].includes(window.location.hostname);
+    const localRunner=!hostedInterface;
     const profileModel=profile=>profile==='low'?'qwen3:1.7b':'qwen3:4b-instruct';
     const selectedModel=()=> $('model').value.trim()||profileModel($('resourceProfile').value);
     const rulesOnly=()=> $('resourceProfile').value==='rules';
@@ -137,6 +138,7 @@ function App() {
         <span className="sequence">// DRILL_SEQUENCE_INITIATED</span>
         <div className="window-lights"><span></span><span></span><span></span></div>
       </div>
+      {hostedInterface&&<div className="hosted-notice"><strong>Hosted interface only</strong><p>Repository checks run on your PC. Start Docker Desktop and run <code>start.cmd</code> from the GhostMaintainer folder. For AI mode, start Ollama too.</p><a href="http://127.0.0.1:8765/">Open the local assistant ↗</a></div>}
       <form id="form">
         <label htmlFor="mode">Choose an analysis</label>
         <select id="mode" defaultValue="assist">
