@@ -7,6 +7,8 @@
 
 **[Open the website](https://ghostmaintainer.vercel.app/)** · [Recorded execution evidence](https://ghostmaintainer.vercel.app/evidence/)
 
+[Presentation promise audit](docs/PRESENTATION_ALIGNMENT.md) maps every slide to its implementation and evidence limits.
+
 The website hosts the interface. Start the local app on your PC to run repository checks with Docker and your selected Ollama model.
 
 Paste a public GitHub repository URL into the local website. GhostMaintainer reads a small, selected set of onboarding evidence, runs its instructions in a clean Docker environment, explains failures, and verifies documentation repairs against the same test target.
@@ -126,7 +128,7 @@ Save that as `ghostmaintainer.json` at its root, or provide the command through 
 
 Latest upgraded run: the synthetic `haunted_env` repair completed in **98.46 seconds**, with all three recorded Qwen calls uncached. Two selected real repositories passed with preparation enabled; a blind Humanize case was inconclusive. [All case records](docs/REAL_REPO_RESULTS.md).
 
-- Current local run: **51 tests discovered; 44 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
+- Current local run: **53 tests discovered; 46 passed and 7 Docker-only tests skipped**. The latest recorded full Docker run before the resource-profile changes had 38 tests pass; Docker integration has not been rerun for this change. Assistant tests use mocked model responses and do not establish model accuracy.
 - An earlier schema-constrained AI `haunted_env` repair passed in **16.697 seconds** with **three uncached Qwen calls** and fresh original/control/verification runs.
 - A multi-gap fixture repair and a missing-token question were also recorded. Their runtimes/context settings differ.
 - Python matrix: 3.9 fails the version-sensitive fixture; 3.11 and 3.12 pass.

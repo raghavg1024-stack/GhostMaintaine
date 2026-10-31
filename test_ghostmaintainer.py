@@ -69,6 +69,27 @@ class PipelineTests(unittest.TestCase):
             self.assertTrue((Path(directory) / 'README.patch').exists())
             self.assertEqual(json.loads(gm.read(Path(directory) / 'report.json'))['status'], 'repaired')
 
+    def test_presentation_evidence_is_visible_and_escaped(self):
+        report=gm.drill(gm.ROOT/'fixtures'/'haunted_env',self.options)
+        report['assistant']={'diagnosis':{'diagnosis':'Missing initialization <script>bad</script>',
+            'category':'documentation_gap','confidence':'high','evidence':['app.py:3'],
+            'questions':['Which initialization mode?']},'calls':[{'model':'qwen','cached':False,'duration_s':1.2}]}
+        page=gm.readable_report_html(report)
+        for text in ('Repeated original instructions','Patched instructions in a fresh environment','Which initialization mode?',
+                     'documentation_gap','app.py:3','fresh response','python app.py init','Documentation diff'):
+            self.assertIn(text,page)
+        self.assertNotIn('<script>bad</script>',page)
+        self.assertNotIn('this run did not reach one',page)
+        self.assertIn('Fresh verification: passed',gm.readable_report_markdown(report))
+
+    def test_inconclusive_report_keeps_status_and_absent_stages_honest(self):
+        report={'status':'inconclusive','repo':'demo','goal':{'cmd':'python -m pytest'},
+                'original':{'ok':False,'status':'invalid_plan','events':[]},'reason':'Model plan rejected'}
+        page=gm.readable_report_html(report)
+        self.assertIn('INCONCLUSIVE',page)
+        self.assertIn('Repeated original instructions · Not run',page)
+        self.assertNotIn('>NOT TESTED<',page)
+
     @unittest.skipUnless(os.environ.get('GHOST_TEST_BACKEND') == 'docker', 'Docker integration check')
     def test_docker_preserves_shell_state_and_captures_stderr(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -227,6 +227,7 @@ function App() {
     </div>
     <p className="hint guard-link"><a href="https://github.com/raghavg1024-stack/git_test/pull/1" target="_blank" rel="noopener">PR Guard: view the passing test and bot patch comment ↗</a></p>
     <p className="hint guard-link"><a href="https://ghostmaintainer.vercel.app/evidence/" target="_blank" rel="noopener">Recorded execution evidence, all real-repository results, and judge guide ↗</a></p>
+    <p className="hint guard-link"><a href="https://ghostmaintainer.vercel.app/evidence/PRESENTATION_ALIGNMENT.md" target="_blank" rel="noopener">Presentation promises: implementation and evidence audit ↗</a></p>
     <footer>GitHub Issues track reported bugs. GhostMaintainer tests contributor setup before that issue exists, then verifies a documentation repair. No automatic commits or pull requests. A passing check verifies the chosen test, not every feature.</footer>
   </main>
 

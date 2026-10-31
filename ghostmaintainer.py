@@ -385,22 +385,7 @@ def report_guidance(report):
     if report.get('status') == 'repaired':
         return ('A documentation repair passed verification', 'A fresh run of the repaired instructions passed the same fixed check.',
                 ['Review the exact README change and its source before applying it.', 'Treat the result as proof for this check and environment only.'])
-    if report.get('status') == 'inconclusive' and 'git: not found' in output and command.lstrip().startswith('git clone'):
-        actions = [
-            'Leave EduMind’s README unchanged. GhostMaintainer already downloaded the repository before starting its temporary test computer, so running `git clone` again inside it is unnecessary.',
-            'In GhostMaintainer’s setup commands, skip `git clone https://github.com/raghavg1024-stack/edumind-ai.git` and the following `cd edumind-ai`. Keep `npm ci` as the dependency installation step.',
-        ]
-        if project.get('test_command') and project.get('configured_check') != project.get('test_command'):
-            actions.append(f'In Check settings, set the required test to `{project["test_command"]}`. This run expected `{project.get("configured_check") or goal}`, but `package.json` declares `{project["test_command"]}`.')
-        if project.get('node_version'):
-            actions.append(f'Configure the test computer to use Node.js 24 and npm (the repository requires `{project["node_version"]}`). The app currently defaults to `{image}`; its backend image can be changed with `GHOST_IMAGE`. Allow network for `npm ci` only if you trust the repository.')
-            actions.append('Check the verifier before rerunning: it currently accepts `N passed` or Python unittest’s `Ran N tests` output. Confirm it can recognize the output produced by this project’s `npm test` script.')
-        else:
-            actions.append(f'Use a container that includes Git and the project’s documented runtime. This run used `{image}` and stopped before the project check.')
-        actions.append('Rerun after those changes. Call it successful only if `npm test` passes in a fresh Node.js test computer. Until then, this run remains inconclusive.')
-        return ('GhostMaintainer stopped before testing the project',
-                'GhostMaintainer had already downloaded the repository, then tried to run its README’s `git clone` command again inside a clean Docker test computer. Git is not installed there, so the run stopped before project setup or tests. This does not show that EduMind is broken.', actions)
-    if original.get('status') == 'environment_blocked' or report.get('status') == 'inconclusive':
+    if original.get('status') == 'environment_blocked':
         return ('The test environment blocked the check', original.get('reason') or report.get('reason') or 'The run stopped before a reliable project result was available.',
                 ['Do not treat this as a repository failure or apply a README patch yet.', f'Provide the missing tool or runtime in the test container, then rerun the unchanged check: `{goal}`.', 'Call the result verified only after the check completes in a fresh container.'])
     if report.get('status') == 'needs_human':
@@ -424,7 +409,7 @@ def readable_report_html(report):
     image = report.get('image') or 'not recorded'
     goal = report.get('goal', {}).get('cmd', 'not recorded')
     status = report.get('status', 'unknown').replace('_', ' ').upper()
-    outcome = 'NOT TESTED' if report.get('status') == 'inconclusive' and not original.get('ok') else status
+    outcome = status
     model = report.get('model', {}).get('labeller', 'not recorded')
     context_record = report.get('context', {})
     context_files = context_record.get('documents_sent', [])
@@ -441,13 +426,13 @@ def readable_report_html(report):
         context_summary = ''
     calls = report.get('assistant', {}).get('calls', [])
     event_rows = ''.join('<li><strong>Attempted:</strong> '+inline(event.get('cmd'))+' · '+('passed' if event.get('exit_code') == 0 else 'stopped with exit '+esc(event.get('exit_code')))+'<pre>'+esc(event.get('output',''))+'</pre></li>' for event in events)
-    check_note = ('The required check ran, but the environment blocked a valid result.' if failed.get('goal') else 'The required check was not reached.')
+    check_note = ('The required check ran without a verified outcome.' if failed.get('goal') else 'The required check was not reached.')
     timeline = '<div class="timeline"><div class="done"><span>1</span><strong>Repository ready</strong><small>The app supplied a working copy for this run.</small></div><div class="blocked"><span>2</span><strong>Run stopped here</strong><small>'+inline(failed.get('cmd','No command recorded'))+'</small></div><div class="pending"><span>3</span><strong>'+esc(check_note)+'</strong><small>No passing result was recorded.</small></div></div>' if report.get('status') == 'inconclusive' else ''
     model_text = '<p>Model: '+esc(model)+'. ' + ('A new response was generated.' if calls and not any(call.get('cached') for call in calls) else 'Some model responses may have been cached.')+'</p>' if report.get('assistant') else ''
     revision = '<p class="meta">Commit checked: <code>'+esc(report['revision'])+'</code></p>' if report.get('revision') else ''
     test_attempts = sum(1 for event in events if event.get('goal'))
     fix_label = 'Yes' if report.get('diff') else 'No'
-    judge_quote = '“This run stopped before testing the repository. It found a problem in GhostMaintainer’s test setup, not proof that the repository is broken.”' if report.get('status') == 'inconclusive' else 'Read the result and limitation above; only claim success if the fixed check passed.'
+    judge_quote = 'The available evidence is insufficient for a verified setup result. Read the recorded reason and completed stages below.' if report.get('status') == 'inconclusive' else 'Read the result and limitation above; only claim success if the fixed check passed.'
     step_items = ''.join('<li>'+inline(step)+'</li>' for step in steps)
     steps_panel = '<section class="card final"><div class="eyebrow">The fix · in order</div><h2>What our team needs to do next</h2><p>These are recommendations, not completed or verified changes.</p><ol class="steps">'+step_items+'</ol></section>'
     ai_panel = ''
@@ -455,7 +440,7 @@ def readable_report_html(report):
     if assistant:
         interpretation = assistant.get('interpretation', {})
         suggested = ''.join('<li>'+inline(step.get('cmd',''))+' <span class="hint">'+esc(', '.join(step.get('citations',[])))+'</span></li>' for step in interpretation.get('steps',[]))
-        ai_panel = '<details class="advanced"><summary>Show AI-suggested setup steps</summary><p>'+esc(interpretation.get('summary',''))+'</p><ul>'+suggested+'</ul>'+model_text+'<p class="hint">AI suggestions can be wrong. A passing test is the evidence; this run did not reach one.</p></details>'
+        ai_panel = '<details class="advanced"><summary>Show AI-suggested setup steps</summary><p>'+esc(interpretation.get('summary',''))+'</p><ul>'+suggested+'</ul>'+model_text+'<p class="hint">AI suggestions can be wrong. Check the recorded execution outcome below.</p></details>'
     patch_link = ' · <a href="README.patch">README patch</a>' if report.get('diff') else ''
     page = '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GhostMaintainer · Run report</title>
 <style>
@@ -464,12 +449,46 @@ def readable_report_html(report):
     page += '<div class="topbar"><div class="brand"><svg class="ghost" viewBox="0 0 28 32" aria-hidden="true"><path d="M5 27V13a9 9 0 0 1 18 0v14l-4-3-5 3-5-3-4 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><ellipse cx="11" cy="13" rx="1.3" ry="1.8" fill="currentColor"/><ellipse cx="17" cy="13" rx="1.3" ry="1.8" fill="currentColor"/></svg> GhostMaintainer</div><span class="badge">'+esc(outcome)+'</span></div>'
     page += '<header class="hero"><div class="eyebrow">A clear result for maintainers</div><h1>'+esc(title)+'</h1><p>'+esc(explanation)+'</p><div class="meta">Repository: <strong>'+esc(report.get('repo'))+'</strong> · '+esc(report.get('duration_s'))+' seconds · '+esc(report.get('backend','unknown'))+'</div>'+revision+context_summary+'</header>'
     page += timeline
-    page += '<section class="card result"><div class="eyebrow">What this tells us</div><h2>Run at a glance</h2><div class="numbers"><div class="metric"><strong>'+str(len(events))+'</strong><small>commands actually run</small></div><div class="metric"><strong>'+str(test_attempts)+'</strong><small>project test checks attempted</small></div><div class="metric"><strong>'+fix_label+'</strong><small>verified README fix</small></div></div><div class="judge"><strong>What to say in a demo:</strong> '+esc(judge_quote)+'</div></section>'
+    page += '<section class="card result"><div class="eyebrow">What this tells us</div><h2>Run at a glance</h2><div class="numbers"><div class="metric"><strong>'+str(len(events))+'</strong><small>original commands run</small></div><div class="metric"><strong>'+str(test_attempts)+'</strong><small>original project checks attempted</small></div><div class="metric"><strong>'+fix_label+'</strong><small>verified README fix</small></div></div><div class="judge"><strong>What to say in a demo:</strong> '+esc(judge_quote)+'</div></section>'
     page += '<section class="card"><div class="eyebrow">More detail · open only if needed</div><h2>Evidence and model notes</h2><p>Required test: '+inline(goal)+'</p><p>Test computer: '+inline(image)+'</p>'+context_note+'<details class="advanced"><summary>Show the exact command and error</summary><ol>'+event_rows+'</ol></details>'+ai_panel+'<details class="advanced"><summary>Open raw files</summary><p><a href="evidence.md">Plain-English summary</a> · <a href="report.json">Full report JSON</a> · <a href="events.jsonl">Execution log</a>'+patch_link+'</p></details></section>'
+    page += evidence_journey_html(report)
     page += steps_panel
     page += '<footer class="foot">This is a saved run, not a live test. It records only commands that actually ran. A recommendation is not a verified fix.</footer></main></body></html>'
     return page
 
+
+
+def evidence_journey_html(report):
+    """Expose the slide-deck promises using recorded data, including absent stages."""
+    esc=lambda value:html.escape(str(value if value is not None else ''))
+    assistant=report.get('assistant',{})
+    diagnosis=assistant.get('diagnosis',{})
+    page='<section class="card"><div class="eyebrow">Recorded verification journey</div><h2>What ran and what changed</h2>'
+    page+='<p>The verification command stayed fixed: <code>'+esc(report.get('goal',{}).get('cmd','not recorded'))+'</code>. Only onboarding documentation is eligible for repair.</p>'
+    page+='<p>Dependency preparation: <strong>'+('enabled; this result includes environment assistance' if report.get('preparation') else 'not enabled')+'</strong>.</p>'
+    for key,label in [('original','Original instructions'),('negative_control','Repeated original instructions'),('verification','Patched instructions in a fresh environment')]:
+        phase=report.get(key)
+        state=('Passed' if phase.get('ok') else phase.get('status','not verified')) if phase else 'Not run'
+        page+='<h3>'+label+' · '+esc(state)+'</h3>'
+        if phase:
+            page+='<p>'+esc(phase.get('reason',''))+'</p><details class="advanced"><summary>Commands, exit codes, timings and output</summary>'
+            for event in phase.get('events',[]):
+                page+='<p><code>'+esc(event.get('cmd'))+'</code> · exit '+esc(event.get('exit_code'))+' · '+esc(event.get('duration_s','not recorded'))+' seconds · '+('fixed check' if event.get('goal') else esc(event.get('stage','setup')))+'</p><pre>'+esc(event.get('output',''))+'</pre>'
+            page+='</details>'
+    page+='<h3>AI explanation</h3><p>'+esc(diagnosis.get('diagnosis','No model diagnosis recorded.'))+'</p>'
+    page+='<p>Category: '+esc(diagnosis.get('category','not recorded'))+' · confidence: '+esc(diagnosis.get('confidence','not recorded'))+'</p>'
+    receipts=list(diagnosis.get('evidence',[]))+[p.get('source','') for p in report.get('patches',[])]
+    page+='<p>Source references: '+esc(', '.join(dict.fromkeys(receipts)) or 'none recorded')+'. Citations identify locations; they do not prove the explanation.</p>'
+    questions=list(dict.fromkeys(assistant.get('interpretation',{}).get('questions',[])+diagnosis.get('questions',[])))
+    page+='<h3>Questions for the maintainer</h3>'+('<ul>'+''.join('<li>'+esc(q)+'</li>' for q in questions)+'</ul>' if questions else '<p>No questions recorded.</p>')
+    diff=report.get('diff') or assistant.get('proposed_diff')
+    page+='<h3>Exact documentation change</h3><p>'+('Verified against the fixed check.' if report.get('status')=='repaired' and report.get('verification',{}).get('ok') else 'No verified repair. Any proposal below needs review.')+'</p>'
+    page+='<details class="advanced" open><summary>Documentation diff</summary><pre>'+esc(diff or 'No change proposed.')+'</pre></details>'
+    page+='<h3>Model calls and cache use</h3>'
+    for call in assistant.get('calls',[]):
+        page+='<p>'+esc(call.get('model','not recorded'))+' · '+('cached response' if call.get('cached') else 'fresh response')+' · '+esc(call.get('duration_s','not recorded'))+' seconds</p>'
+    if not assistant.get('calls'): page+='<p>No model call records available.</p>'
+    return page+'</section>'
 
 
 def readable_report_markdown(report):
@@ -483,11 +502,20 @@ def readable_report_markdown(report):
         f'- Duration: {report.get("duration_s", "unknown")} seconds',
         '- Project tests attempted: '+str(sum(1 for item in report.get('original', {}).get('events', []) if item.get('goal'))),
         '- README fix verified: '+('yes' if report.get('status') == 'repaired' and report.get('verification', {}).get('ok') else 'no'),
-        '', 'A saved run cannot prove every feature works. “Inconclusive” means the project check did not run to completion.'
+        '', 'A saved run cannot prove every feature works. “Inconclusive” means the available evidence did not establish a verified outcome.'
     ]
     context_record=report.get('context',{})
     if context_record:
         lines += ['', '## Model and data used', '', f'- Resource mode: {context_record.get("resource_profile")}', f'- Model context: {context_record.get("context_tokens")} tokens', f'- Inference ran on: {context_record.get("inference_location")}', f'- Selected files: {", ".join(context_record.get("documents_sent", [])) or "none recorded"}', f'- Failure output sent: {"yes (trimmed)" if context_record.get("failure_logs_sent") else "no"}', f'- Endpoint: `{context_record.get("endpoint", "not recorded")}`']
+    diagnosis=report.get('assistant',{}).get('diagnosis',{})
+    lines += ['', '## AI explanation', '', diagnosis.get('diagnosis','No diagnosis recorded.'), '', 'Category: '+diagnosis.get('category','not recorded'), 'Source references: '+', '.join(diagnosis.get('evidence',[]))]
+    questions=report.get('assistant',{}).get('interpretation',{}).get('questions',[])+diagnosis.get('questions',[])
+    lines += ['', '## Questions for the maintainer', '']+[f'- {q}' for q in dict.fromkeys(questions)]
+    lines += ['', '## Recorded stages', '']
+    for key,label in [('original','Original'),('negative_control','Repeated original'),('verification','Fresh verification')]:
+        phase=report.get(key)
+        lines.append('- '+label+': '+(('passed' if phase.get('ok') else phase.get('status','not verified')) if phase else 'not run'))
+    lines += ['', '## Documentation diff', '', '~~~~diff', report.get('diff') or report.get('assistant',{}).get('proposed_diff') or 'No change proposed.', '~~~~']
     lines += ['', '## Step-by-step fix', '', 'These are recommendations, not completed or verified fixes.', '']
     lines += [f'{index}. {step}' for index, step in enumerate(steps, 1)]
     return '\n'.join(lines)+'\n'

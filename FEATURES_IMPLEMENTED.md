@@ -16,7 +16,7 @@ All eight requested features are implemented in this source checkout. The browse
 ## Evidence
 
 - Resource modes: low-memory (Qwen3 1.7B, 4K context), balanced (Qwen3 4B, 8K context), and rules-only (no LLM). Selected evidence is capped and listed in the report. Optional remote Ollama requires HTTPS and explicit per-run consent; the full checkout is not sent.
-- Current local run: 51 tests discovered, 44 passed, and 7 Docker-only tests skipped. The latest recorded full Docker run before these profile changes had 38 tests pass; Docker integration has not been rerun for this change. Replay JavaScript has a separate test for scrubbing, output, phase completion, and selected-step highlighting.
+- Current local run: 53 tests discovered, 46 passed, and 7 Docker-only tests skipped. The latest recorded full Docker run before these profile changes had 38 tests pass; Docker integration has not been rerun for this change. Replay JavaScript has a separate test for scrubbing, output, phase completion, and selected-step highlighting.
 - Runtime matrix: `runs/features/haunted_version/matrix.html`.
 - Ship verification: `runs/features/haunted_env/ship/verification.json` and `runs/features/haunted_init/ship/verification.json`.
 - Benchmark: `runs/features/bench/BENCH.md` and `bench_models.json`.
