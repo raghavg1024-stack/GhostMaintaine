@@ -14,8 +14,14 @@ function App() {
     const rulesOnly=()=> $('resourceProfile').value==='rules';
     function status(message,error=false){$('status').className=error?'error':'';$('status').textContent=message;const log=$('progressLog');if(log.lastElementChild?.textContent!==message){const item=document.createElement('li');item.textContent=message;log.append(item);}}
     function setBusy(value){busy=value;$('submit').disabled=value||!ready;$('mode').disabled=value;}
+    function setModelSuggestions(names){
+      $('ollamaModels').replaceChildren(...[...new Set(names)].sort().map(name=>{
+        const option=document.createElement('option');option.value=name;return option;
+      }));
+    }
 
     async function refreshHealth(){
+      if(!localRunner)return;
       const sequence=++healthRequest,profile=$('resourceProfile').value,model=selectedModel();
       const ai=$('mode').value==='assist'&&!rulesOnly();
       if(!ai&&$('remoteAi').checked)$('remoteAi').checked=false;
@@ -27,6 +33,10 @@ function App() {
         const response=await fetch('/api/health?'+query,{headers:{'X-Ghost-Token':token}});
         if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error(detail.error||'Readiness check failed');}
         const h=await response.json();if(sequence!==healthRequest)return;
+        setModelSuggestions(h.models||[]);
+        $('modelHint').textContent=h.ollama
+          ?'Type part of a model name to filter the installed models, then choose a suggestion. You can also enter an exact model name. Blank uses the resource mode’s default.'
+          :'Start Ollama to load installed model suggestions. Blank uses the resource mode’s default; a typed model must be installed before analysis.';
         const remoteVisible=ai&&h.remote_configured;
         $('remoteField').className=remoteVisible?'field':'field hidden';
         $('remoteHost').textContent=h.ollama_origin||'configured host';
@@ -39,11 +49,14 @@ function App() {
           ?'Ready · '+(rulesOnly()?'rules-only; no AI model used':model+(remote?' on the configured remote server':' on this PC'))+' · repository setup runs in Docker.'
           :'Needs: '+missing.join(', ')+'. Run start.cmd for setup instructions.';
         $('submit').disabled=busy||!ready;
-      }catch(error){ready=false;$('submit').disabled=true;$('readiness').textContent=error.message;}
+      }catch(error){setModelSuggestions([]);ready=false;$('submit').disabled=true;$('readiness').textContent=error.message;}
     }
 
     async function start(){
-      if(!localRunner){window.location.assign('http://127.0.0.1:8765/?repo='+encodeURIComponent($('url').value.trim()));return;}
+      if(!localRunner){
+        const query=new URLSearchParams({repo:$('url').value.trim(),model:selectedModel(),profile:$('resourceProfile').value});
+        window.location.assign('http://127.0.0.1:8765/?'+query);return;
+      }
       if(busy||!ready)return;
       $('progressLog').replaceChildren();
       if($('prepare').checked&&!$('network').checked){status('Enable container network access before opting into dependency preparation.',true);return;}
@@ -74,13 +87,20 @@ function App() {
     }
 
     if(!localRunner){
+      setModelSuggestions(['qwen3:1.7b','qwen3:4b-instruct','gemma4:latest','mistral:latest']);
+      $('modelHint').textContent='Type part of a model name and choose a suggestion, or enter its exact name. These are examples, not a check of installed models. The local app loads your installed Ollama models and checks the selection.';
       ready=true;setBusy(false);$('submit').textContent='Open local assistant →';
       document.querySelector('.badge').textContent='Local runner required';
       $('readiness').textContent='The check runs on your PC. Enter a repo and open the local assistant; run start.cmd first if needed. ';
       const link=document.createElement('a');link.href='http://127.0.0.1:8765/';link.textContent='Open local app ↗';link.target='_blank';link.rel='noopener';$('readiness').append(link);
     }else{
-      const incoming=new URLSearchParams(window.location.search).get('repo');
+      const incomingParams=new URLSearchParams(window.location.search);
+      const incoming=incomingParams.get('repo');
       if(incoming&&/^https:\/\/github\.com\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+\/?$/.test(incoming))$('url').value=incoming;
+      const incomingModel=incomingParams.get('model');
+      if(incomingModel&&/^[A-Za-z0-9][A-Za-z0-9_./:-]{0,199}$/.test(incomingModel))$('model').value=incomingModel;
+      const incomingProfile=incomingParams.get('profile');
+      if(['low','balanced','rules'].includes(incomingProfile))$('resourceProfile').value=incomingProfile;
       fetch('/api/session').then(r=>{if(!r.ok)throw Error('Session unavailable');return r.json();}).then(session=>{token=session.token;return refreshHealth();}).catch(()=>{ready=false;setBusy(false);status('Cannot reach the local server. Run start.cmd on this PC.',true);});
     }
 
@@ -101,10 +121,12 @@ function App() {
       $('repoField').className=['bench-models','scan'].includes(mode)?'hidden':'';$('scanField').className=mode==='scan'?'':'hidden';
       updateModeCopy();
     });
-    $('resourceProfile').addEventListener('change',()=>{
+    function updateProfileHint(){
       $('profileHint').textContent=({low:'Uses Qwen3 1.7B by default with a 4K model context and up to 6,000 characters of selected evidence. Model weights are about 1.4 GB; runtime and Docker need additional memory.',balanced:'Uses Qwen3 4B by default with an 8K model context and up to 16,000 characters of selected evidence. Model weights are about 2.5 GB; runtime and Docker need additional memory.',rules:'Uses no LLM. The deterministic check can follow supported commands but cannot interpret setup prose.'})[$('resourceProfile').value];
       updateModeCopy();
-    });
+    }
+    $('resourceProfile').addEventListener('change',updateProfileHint);
+    updateProfileHint();
     $('form').addEventListener('submit',event=>{event.preventDefault();start();});
 
 
@@ -181,9 +203,10 @@ function App() {
               <p className="hint">Leave blank to use ghostmaintainer.json or detect pytest/unittest from the project. At least one test must run. Set this for projects using pytest or another runner.</p>
             </div>
             <div id="modelField" className="field">
-              <label htmlFor="model">Optional Ollama model override</label>
-              <input type="text" id="model" placeholder="Uses the selected profile’s default" spellCheck="false" />
-              <p className="hint">Low memory defaults to qwen3:1.7b. Balanced defaults to qwen3:4b-instruct. Install the selected model with Ollama before running.</p>
+              <label htmlFor="model">Ollama model</label>
+              <input type="text" id="model" list="ollamaModels" placeholder="Type a model name, e.g. qwen" spellCheck="false" autoComplete="off" aria-describedby="modelHint" maxLength={200} />
+              <datalist id="ollamaModels" />
+              <p id="modelHint" className="hint">Type part of a model name to see suggestions. The local app loads installed models from Ollama.</p>
             </div>
             <div id="remoteField" className="field hidden">
               <label className="check" htmlFor="remoteAi"><input type="checkbox" id="remoteAi" /><span>Allow optional remote inference at <code id="remoteHost">configured host</code>.</span></label>
